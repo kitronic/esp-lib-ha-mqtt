@@ -10,7 +10,9 @@
     #include <WiFi.h>
 #endif
 
+#include "HAConfig.h"
 #include "HAEntity.h"
+#include "HAStateCache.h"
 
 typedef void (*HACommandCallback)(const char* topic, const char* payload);
 
@@ -18,29 +20,29 @@ class HAMQTT {
 public:
     HAMQTT(Client* networkClient);
 
-    // ═══════ الإعداد ═══════
+    // ═══ الإعداد ═══
     void setServer(const char* server, uint16_t port = 1883,
                    const char* user = nullptr, const char* pass = nullptr);
-    void setDiscoveryPrefix(const char* prefix = "homeassistant");
-    void setStateTopicPrefix(const char* prefix);
-    void setAvailabilityTopic(const char* topic);
     void setDevice(const char* id, const char* name,
                    const char* manufacturer = "",
                    const char* model = "",
                    const char* swVersion = "");
+    void setStateTopicPrefix(const char* prefix);
+    void setAvailabilityTopic(const char* topic);
+    void setDiscoveryPrefix(const char* prefix = "homeassistant");
 
-    // ═══════ دورة الحياة ═══════
+    // ═══ دورة الحياة ═══
     bool begin();
     void loop();
     bool connected();
     void reconnect();
 
-    // ═══════ إضافة الكيانات ═══════
+    // ═══ إضافة الكيانات ═══
     bool addSensor(const char* id, const char* name,
                    const char* unit = "",
                    const char* deviceClass = "",
                    const char* icon = "",
-                   bool retained = true);
+                   bool stateClass = false);
 
     bool addBinarySensor(const char* id, const char* name,
                          const char* deviceClass = "",
@@ -52,45 +54,67 @@ public:
     bool addSwitch(const char* id, const char* name,
                    const char* icon = "mdi:toggle-switch");
 
-    // ═══════ نشر Discovery ═══════
+    // ⚠️ optionsJson يجب أن يكون string literal (flash)
+    bool addSelect(const char* id, const char* name,
+                   const char* optionsJson,
+                   const char* icon = "mdi:format-list-bulleted");
+
+    bool addNumber(const char* id, const char* name,
+                   float minVal, float maxVal, float step,
+                   const char* unit = "",
+                   const char* icon = "mdi:ray-vertex");
+
+    // ═══ Discovery ═══
     bool publishDiscovery();
     bool publishDiscovery(const char* entityId);
 
-    // ═══════ نشر الحالة ═══════
-    bool publishState(const char* entityId, const char* value);
-    bool publishState(const char* entityId, float value, uint8_t decimals = 1);
-    bool publishState(const char* entityId, int value);
-    bool publishBinaryState(const char* entityId, bool on);
-    bool publishAttribute(const char* entityId, const char* attr, const char* value);
+    // ═══ نشر الحالة (مع cache) ═══
+    bool publishState(const char* entityId, const char* value,
+                      unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
+    bool publishState(const char* entityId, float value,
+                      uint8_t decimals = 1,
+                      unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
+    bool publishState(const char* entityId, int value,
+                      unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
+    bool publishBinaryState(const char* entityId, bool on,
+                            unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
+    bool publishRaw(const char* topic, const char* value,
+                    bool retain = false,
+                    unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
 
-    // ═══════ التوفر ═══════
+    // ═══ Availability ═══
     void publishAvailable();
     void publishUnavailable();
 
-    // ═══════ الأوامر ═══════
+    // ═══ Commands ═══
     void onCommand(HACommandCallback callback);
 
-    // ═══════ الوصول للـ client الأصلي ═══════
+    // ═══ Cache ═══
+    void clearCache() { _cache.clear(); }
+
+    // ═══ Diagnostics ═══
+    uint8_t entityCount() const { return _entityCount; }
     PubSubClient& client() { return _mqtt; }
 
 private:
     PubSubClient _mqtt;
     Client* _networkClient;
+    HAStateCache _cache;
 
     const char* _server;
     uint16_t _port;
     const char* _user;
     const char* _pass;
 
-    char _discoveryPrefix[24];
-    char _stateTopicPrefix[64];
+    char _discoveryPrefix[20];
+    char _stateTopicPrefix[48];
     char _availabilityTopic[HA_TOPIC_LEN];
 
     char _deviceId[HA_ID_LEN];
     char _deviceName[HA_NAME_LEN];
     char _manufacturer[HA_ID_LEN];
     char _model[HA_ID_LEN];
-    char _swVersion[16];
+    char _swVersion[12];
 
     HAEntity _entities[HA_MAX_ENTITIES];
     uint8_t _entityCount;
@@ -101,6 +125,8 @@ private:
     HAEntity* _findEntity(const char* id);
     bool _buildStateTopic(char* buf, size_t len, const char* entityId);
     bool _buildCommandTopic(char* buf, size_t len, const char* entityId);
+    bool _doPublish(const char* topic, const char* value,
+                    bool retain, unsigned long heartbeatMs);
 };
 
 #endif

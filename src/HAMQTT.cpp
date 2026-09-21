@@ -1,6 +1,9 @@
 #include "HAMQTT.h"
 #include "HADiscovery.h"
+#include <string.h>
+#include <stdio.h>
 
+// ═══════════════════════════════════════════
 HAMQTT::HAMQTT(Client* networkClient)
     : _mqtt(*networkClient), _networkClient(networkClient)
 {
@@ -32,14 +35,20 @@ void HAMQTT::setServer(const char* server, uint16_t port,
                        const char* user, const char* pass)
 {
     _server = server;
-    _port   = port;
-    _user   = user;
-    _pass   = pass;
+    _port = port;
+    _user = user;
+    _pass = pass;
 }
 
-void HAMQTT::setDiscoveryPrefix(const char* prefix) {
-    strncpy(_discoveryPrefix, prefix, sizeof(_discoveryPrefix) - 1);
-    _discoveryPrefix[sizeof(_discoveryPrefix) - 1] = '\0';
+void HAMQTT::setDevice(const char* id, const char* name,
+                       const char* manufacturer, const char* model,
+                       const char* swVersion)
+{
+    strncpy(_deviceId, id, HA_ID_LEN - 1);              _deviceId[HA_ID_LEN-1]='\0';
+    strncpy(_deviceName, name, HA_NAME_LEN - 1);        _deviceName[HA_NAME_LEN-1]='\0';
+    strncpy(_manufacturer, manufacturer, HA_ID_LEN - 1); _manufacturer[HA_ID_LEN-1]='\0';
+    strncpy(_model, model, HA_ID_LEN - 1);              _model[HA_ID_LEN-1]='\0';
+    strncpy(_swVersion, swVersion, 11);                 _swVersion[11]='\0';
 }
 
 void HAMQTT::setStateTopicPrefix(const char* prefix) {
@@ -48,39 +57,24 @@ void HAMQTT::setStateTopicPrefix(const char* prefix) {
 }
 
 void HAMQTT::setAvailabilityTopic(const char* topic) {
-    strncpy(_availabilityTopic, topic, sizeof(_availabilityTopic) - 1);
-    _availabilityTopic[sizeof(_availabilityTopic) - 1] = '\0';
+    strncpy(_availabilityTopic, topic, HA_TOPIC_LEN - 1);
+    _availabilityTopic[HA_TOPIC_LEN - 1] = '\0';
 }
 
-void HAMQTT::setDevice(const char* id, const char* name,
-                       const char* manufacturer, const char* model,
-                       const char* swVersion)
-{
-    strncpy(_deviceId, id, sizeof(_deviceId) - 1);
-    _deviceId[sizeof(_deviceId) - 1] = '\0';
-
-    strncpy(_deviceName, name, sizeof(_deviceName) - 1);
-    _deviceName[sizeof(_deviceName) - 1] = '\0';
-
-    strncpy(_manufacturer, manufacturer, sizeof(_manufacturer) - 1);
-    _manufacturer[sizeof(_manufacturer) - 1] = '\0';
-
-    strncpy(_model, model, sizeof(_model) - 1);
-    _model[sizeof(_model) - 1] = '\0';
-
-    strncpy(_swVersion, swVersion, sizeof(_swVersion) - 1);
-    _swVersion[sizeof(_swVersion) - 1] = '\0';
+void HAMQTT::setDiscoveryPrefix(const char* prefix) {
+    strncpy(_discoveryPrefix, prefix, sizeof(_discoveryPrefix) - 1);
+    _discoveryPrefix[sizeof(_discoveryPrefix) - 1] = '\0';
 }
 
 // ═══════════════════════════════════════════
 //              Lifecycle
 // ═══════════════════════════════════════════
 bool HAMQTT::begin() {
-    if (!_server || _server[0] == '\0') return false;
+    if (!_server || !_server[0]) return false;
 
     _mqtt.setServer(_server, _port);
-    _mqtt.setBufferSize(512);
-    _mqtt.setKeepAlive(30);
+    _mqtt.setBufferSize(HA_MQTT_BUFFER_SIZE);
+    _mqtt.setKeepAlive(60);
 
     return reconnect();
 }
@@ -97,47 +91,42 @@ void HAMQTT::loop() {
     _mqtt.loop();
 }
 
-bool HAMQTT::connected() {
-    return _mqtt.connected();
-}
+bool HAMQTT::connected() { return _mqtt.connected(); }
 
 void HAMQTT::reconnect() {
     if (_mqtt.connected()) return;
 
-    const char* willTopic = (_availabilityTopic[0] != '\0')
-                            ? _availabilityTopic : nullptr;
+    const char* willTopic = _availabilityTopic[0] ? _availabilityTopic : nullptr;
 
     bool ok;
-    if (_user && _user[0] != '\0') {
-        ok = _mqtt.connect(_deviceId, _user, _pass,
-                           willTopic, 0, true, "offline");
+    if (_user && _user[0]) {
+        ok = _mqtt.connect(_deviceId, _user, _pass, willTopic, 1, true, "offline");
     } else {
-        ok = _mqtt.connect(_deviceId, nullptr, nullptr,
-                           willTopic, 0, true, "offline");
+        ok = _mqtt.connect(_deviceId, nullptr, nullptr, willTopic, 1, true, "offline");
     }
 
     if (!ok) return;
 
-    if (_availabilityTopic[0] != '\0') {
+    _cache.clear();
+
+    if (_availabilityTopic[0])
         _mqtt.publish(_availabilityTopic, "online", true);
-    }
 
     // اشترك في command topics
-    if (_commandCallback) {
-        for (uint8_t i = 0; i < _entityCount; i++) {
-            HAEntity& e = _entities[i];
-            if (e.used && (e.type == HA_BUTTON || e.type == HA_SWITCH)) {
-                char topic[HA_TOPIC_LEN];
-                _buildCommandTopic(topic, sizeof(topic), e.id);
-                _mqtt.subscribe(topic);
-            }
+    for (uint8_t i = 0; i < _entityCount; i++) {
+        HAEntity& e = _entities[i];
+        if (!e.used) continue;
+        if (e.type == HA_BUTTON || e.type == HA_SWITCH ||
+            e.type == HA_SELECT || e.type == HA_NUMBER) {
+            char topic[HA_TOPIC_LEN];
+            _buildCommandTopic(topic, sizeof(topic), e.id);
+            _mqtt.subscribe(topic);
         }
     }
 
-    // تسجيل callback
     _mqtt.setCallback([this](char* topic, uint8_t* payload, unsigned int len) {
         if (_commandCallback) {
-            char buf[128];
+            char buf[HA_CMD_BUF];
             unsigned int n = (len < sizeof(buf) - 1) ? len : sizeof(buf) - 1;
             memcpy(buf, payload, n);
             buf[n] = '\0';
@@ -151,31 +140,31 @@ void HAMQTT::reconnect() {
 // ═══════════════════════════════════════════
 HAEntity* HAMQTT::_findEntity(const char* id) {
     for (uint8_t i = 0; i < _entityCount; i++) {
-        if (_entities[i].used && strcmp(_entities[i].id, id) == 0) {
+        if (_entities[i].used && strcmp(_entities[i].id, id) == 0)
             return &_entities[i];
-        }
     }
     return nullptr;
 }
 
 bool HAMQTT::addSensor(const char* id, const char* name,
                        const char* unit, const char* deviceClass,
-                       const char* icon, bool retained)
+                       const char* icon, bool stateClass)
 {
     if (_entityCount >= HA_MAX_ENTITIES) return false;
     if (_findEntity(id)) return false;
 
     HAEntity& e = _entities[_entityCount++];
+    memset(&e, 0, sizeof(e));
     e.type = HA_SENSOR;
     e.used = true;
-    e.retained = retained;
+    e.retained = true;
+    e.hasStateClass = stateClass;
 
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
-    strncpy(e.unit, unit, HA_UNIT_LEN - 1);     e.unit[HA_UNIT_LEN - 1] = '\0';
+    strncpy(e.id, id, HA_ID_LEN - 1);
+    strncpy(e.name, name, HA_NAME_LEN - 1);
+    strncpy(e.unit, unit, HA_UNIT_LEN - 1);
     strncpy(e.deviceClass, deviceClass, HA_DC_LEN - 1);
-    e.deviceClass[HA_DC_LEN - 1] = '\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);
     return true;
 }
 
@@ -186,16 +175,15 @@ bool HAMQTT::addBinarySensor(const char* id, const char* name,
     if (_findEntity(id)) return false;
 
     HAEntity& e = _entities[_entityCount++];
+    memset(&e, 0, sizeof(e));
     e.type = HA_BINARY_SENSOR;
     e.used = true;
     e.retained = true;
 
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
+    strncpy(e.id, id, HA_ID_LEN - 1);
+    strncpy(e.name, name, HA_NAME_LEN - 1);
     strncpy(e.deviceClass, deviceClass, HA_DC_LEN - 1);
-    e.deviceClass[HA_DC_LEN - 1] = '\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
-    e.unit[0] = '\0';
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);
     return true;
 }
 
@@ -204,15 +192,14 @@ bool HAMQTT::addButton(const char* id, const char* name, const char* icon) {
     if (_findEntity(id)) return false;
 
     HAEntity& e = _entities[_entityCount++];
+    memset(&e, 0, sizeof(e));
     e.type = HA_BUTTON;
     e.used = true;
     e.retained = true;
 
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
-    e.unit[0] = '\0';
-    e.deviceClass[0] = '\0';
+    strncpy(e.id, id, HA_ID_LEN - 1);
+    strncpy(e.name, name, HA_NAME_LEN - 1);
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);
     return true;
 }
 
@@ -221,20 +208,66 @@ bool HAMQTT::addSwitch(const char* id, const char* name, const char* icon) {
     if (_findEntity(id)) return false;
 
     HAEntity& e = _entities[_entityCount++];
+    memset(&e, 0, sizeof(e));
     e.type = HA_SWITCH;
     e.used = true;
     e.retained = true;
 
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
-    e.unit[0] = '\0';
-    e.deviceClass[0] = '\0';
+    strncpy(e.id, id, HA_ID_LEN - 1);
+    strncpy(e.name, name, HA_NAME_LEN - 1);
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);
+    return true;
+}
+
+// ⚠️ مهم: optionsJson لازم يكون string literal (flash)
+bool HAMQTT::addSelect(const char* id, const char* name,
+                       const char* optionsJson, const char* icon)
+{
+    if (_entityCount >= HA_MAX_ENTITIES) return false;
+    if (_findEntity(id)) return false;
+
+    HAEntity& e = _entities[_entityCount++];
+    memset(&e, 0, sizeof(e));
+    e.type = HA_SELECT;
+    e.used = true;
+    e.retained = true;
+
+    strncpy(e.id, id, HA_ID_LEN - 1);
+    strncpy(e.name, name, HA_NAME_LEN - 1);
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);
+
+    // ═══ نحفظ المؤشر فقط (توفير ~300 bytes لكل select) ═══
+    e.options = optionsJson;
+
+    return true;
+}
+
+bool HAMQTT::addNumber(const char* id, const char* name,
+                       float minVal, float maxVal, float step,
+                       const char* unit, const char* icon)
+{
+    if (_entityCount >= HA_MAX_ENTITIES) return false;
+    if (_findEntity(id)) return false;
+
+    HAEntity& e = _entities[_entityCount++];
+    memset(&e, 0, sizeof(e));
+    e.type = HA_NUMBER;
+    e.used = true;
+    e.retained = true;
+
+    strncpy(e.id, id, HA_ID_LEN - 1);
+    strncpy(e.name, name, HA_NAME_LEN - 1);
+    strncpy(e.unit, unit, HA_UNIT_LEN - 1);
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);
+
+    e.range.min = minVal;
+    e.range.max = maxVal;
+    e.range.step = step;
     return true;
 }
 
 // ═══════════════════════════════════════════
-//              Topic Builders
+//              Topic Helpers
 // ═══════════════════════════════════════════
 bool HAMQTT::_buildStateTopic(char* buf, size_t len, const char* entityId) {
     int n = snprintf(buf, len, "%s/%s/state", _stateTopicPrefix, entityId);
@@ -247,7 +280,7 @@ bool HAMQTT::_buildCommandTopic(char* buf, size_t len, const char* entityId) {
 }
 
 // ═══════════════════════════════════════════
-//              Publish Discovery
+//              Discovery
 // ═══════════════════════════════════════════
 bool HAMQTT::publishDiscovery(const char* entityId) {
     if (!_mqtt.connected()) return false;
@@ -256,12 +289,12 @@ bool HAMQTT::publishDiscovery(const char* entityId) {
     if (!e) return false;
 
     HADiscovery::Context ctx;
-    ctx.deviceId          = _deviceId;
-    ctx.deviceName        = _deviceName;
-    ctx.manufacturer      = _manufacturer;
-    ctx.model             = _model;
-    ctx.swVersion         = _swVersion;
-    ctx.stateTopicPrefix  = _stateTopicPrefix;
+    ctx.deviceId = _deviceId;
+    ctx.deviceName = _deviceName;
+    ctx.manufacturer = _manufacturer;
+    ctx.model = _model;
+    ctx.swVersion = _swVersion;
+    ctx.stateTopicPrefix = _stateTopicPrefix;
     ctx.availabilityTopic = _availabilityTopic;
 
     char topic[HA_TOPIC_LEN];
@@ -269,27 +302,11 @@ bool HAMQTT::publishDiscovery(const char* entityId) {
 
     if (!HADiscovery::buildTopic(topic, sizeof(topic),
                                  _discoveryPrefix, component,
-                                 _deviceId, e->id)) {
+                                 _deviceId, e->id))
         return false;
-    }
 
-    char payload[512];
-    int len = 0;
-
-    switch (e->type) {
-        case HA_SENSOR:
-            len = HADiscovery::buildSensor(payload, sizeof(payload), *e, ctx);
-            break;
-        case HA_BINARY_SENSOR:
-            len = HADiscovery::buildBinarySensor(payload, sizeof(payload), *e, ctx);
-            break;
-        case HA_BUTTON:
-            len = HADiscovery::buildButton(payload, sizeof(payload), *e, ctx);
-            break;
-        case HA_SWITCH:
-            len = HADiscovery::buildSwitch(payload, sizeof(payload), *e, ctx);
-            break;
-    }
+    char payload[HA_DISCOVERY_BUF];
+    int len = HADiscovery::build(payload, sizeof(payload), *e, ctx);
 
     if (len <= 0 || (size_t)len >= sizeof(payload)) return false;
 
@@ -310,61 +327,72 @@ bool HAMQTT::publishDiscovery() {
 }
 
 // ═══════════════════════════════════════════
-//              Publish State
+//              Publish State (مع cache)
 // ═══════════════════════════════════════════
-bool HAMQTT::publishState(const char* entityId, const char* value) {
+bool HAMQTT::_doPublish(const char* topic, const char* value,
+                        bool retain, unsigned long heartbeatMs)
+{
     if (!_mqtt.connected()) return false;
+    if (!_cache.shouldPublish(topic, value, heartbeatMs)) return true;
 
+    if (_mqtt.publish(topic, value, retain)) {
+        _cache.commit(topic, value);
+        return true;
+    }
+    return false;
+}
+
+bool HAMQTT::publishRaw(const char* topic, const char* value,
+                        bool retain, unsigned long heartbeatMs)
+{
+    return _doPublish(topic, value, retain, heartbeatMs);
+}
+
+bool HAMQTT::publishState(const char* entityId, const char* value,
+                          unsigned long heartbeatMs)
+{
     HAEntity* e = _findEntity(entityId);
     if (!e) return false;
 
     char topic[HA_TOPIC_LEN];
-    _buildStateTopic(topic, sizeof(topic), entityId);
-    return _mqtt.publish(topic, value, e->retained);
+    if (!_buildStateTopic(topic, sizeof(topic), entityId)) return false;
+
+    return _doPublish(topic, value, e->retained, heartbeatMs);
 }
 
-bool HAMQTT::publishState(const char* entityId, float value, uint8_t decimals) {
-    char buf[24];
+bool HAMQTT::publishState(const char* entityId, float value,
+                          uint8_t decimals, unsigned long heartbeatMs)
+{
+    char buf[HA_STATE_BUF];
     dtostrf(value, 0, decimals, buf);
-    return publishState(entityId, buf);
+    return publishState(entityId, buf, heartbeatMs);
 }
 
-bool HAMQTT::publishState(const char* entityId, int value) {
-    char buf[16];
+bool HAMQTT::publishState(const char* entityId, int value,
+                          unsigned long heartbeatMs)
+{
+    char buf[HA_STATE_BUF];
     snprintf(buf, sizeof(buf), "%d", value);
-    return publishState(entityId, buf);
+    return publishState(entityId, buf, heartbeatMs);
 }
 
-bool HAMQTT::publishBinaryState(const char* entityId, bool on) {
-    return publishState(entityId, on ? "ON" : "OFF");
-}
-
-bool HAMQTT::publishAttribute(const char* entityId, const char* attr,
-                              const char* value) {
-    if (!_mqtt.connected()) return false;
-
-    HAEntity* e = _findEntity(entityId);
-    if (!e) return false;
-
-    char topic[HA_TOPIC_LEN];
-    snprintf(topic, sizeof(topic), "%s/%s/attr/%s",
-             _stateTopicPrefix, entityId, attr);
-    return _mqtt.publish(topic, value, false);
+bool HAMQTT::publishBinaryState(const char* entityId, bool on,
+                                unsigned long heartbeatMs)
+{
+    return publishState(entityId, on ? "true" : "false", heartbeatMs);
 }
 
 // ═══════════════════════════════════════════
 //              Availability
 // ═══════════════════════════════════════════
 void HAMQTT::publishAvailable() {
-    if (_mqtt.connected() && _availabilityTopic[0]) {
+    if (_mqtt.connected() && _availabilityTopic[0])
         _mqtt.publish(_availabilityTopic, "online", true);
-    }
 }
 
 void HAMQTT::publishUnavailable() {
-    if (_mqtt.connected() && _availabilityTopic[0]) {
+    if (_mqtt.connected() && _availabilityTopic[0])
         _mqtt.publish(_availabilityTopic, "offline", true);
-    }
 }
 
 // ═══════════════════════════════════════════
@@ -376,7 +404,9 @@ void HAMQTT::onCommand(HACommandCallback callback) {
     if (_mqtt.connected()) {
         for (uint8_t i = 0; i < _entityCount; i++) {
             HAEntity& e = _entities[i];
-            if (e.used && (e.type == HA_BUTTON || e.type == HA_SWITCH)) {
+            if (!e.used) continue;
+            if (e.type == HA_BUTTON || e.type == HA_SWITCH ||
+                e.type == HA_SELECT || e.type == HA_NUMBER) {
                 char topic[HA_TOPIC_LEN];
                 _buildCommandTopic(topic, sizeof(topic), e.id);
                 _mqtt.subscribe(topic);

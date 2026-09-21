@@ -1,0 +1,22 @@
+# ═══ Normalize line endings ═══
+* text=auto eol=lf
+
+# ═══ Source code ═══
+*.c    text
+*.cpp  text
+*.h    text
+*.hpp  text
+*.ino  text
+
+# ═══ Config ═══
+*.json text
+*.properties text
+*.ini  text
+*.md   text
+*.yml  text
+*.yaml text
+
+# ═══ Binary ═══
+*.bin  binary
+*.hex  binary
+*.elf  binary

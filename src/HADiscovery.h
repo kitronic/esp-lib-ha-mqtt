@@ -16,17 +16,8 @@ public:
         const char* availabilityTopic;
     };
 
-    static int buildSensor(char* buf, size_t bufLen,
-                           const HAEntity& e, const Context& ctx);
-
-    static int buildBinarySensor(char* buf, size_t bufLen,
-                                 const HAEntity& e, const Context& ctx);
-
-    static int buildButton(char* buf, size_t bufLen,
-                           const HAEntity& e, const Context& ctx);
-
-    static int buildSwitch(char* buf, size_t bufLen,
-                           const HAEntity& e, const Context& ctx);
+    static int build(char* buf, size_t bufLen,
+                     const HAEntity& e, const Context& ctx);
 
     static bool buildTopic(char* buf, size_t bufLen,
                            const char* discoveryPrefix,
@@ -35,16 +26,6 @@ public:
                            const char* entityId);
 
     static const char* typeToComponent(HAEntityType type);
-
-private:
-    static int _appendDeviceBlock(char* buf, size_t bufLen, int n,
-                                  const Context& ctx);
-
-    static int _appendAvailabilityBlock(char* buf, size_t bufLen, int n,
-                                        const Context& ctx);
-
-    static int _appendOptionalFields(char* buf, size_t bufLen, int n,
-                                     const HAEntity& e);
 };
 
 #endif

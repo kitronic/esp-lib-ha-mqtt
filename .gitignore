@@ -1,0 +1,40 @@
+# ═══ PlatformIO ═══
+.pio/
+.pioenvs/
+.piolibdeps/
+.vscode/
+
+# ═══ Arduino ═══
+build/
+*.hex
+*.bin
+*.elf
+*.map
+
+# ═══ Build artifacts ═══
+*.o
+*.a
+*.so
+*.d
+
+# ═══ IDE ═══
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ═══ OS ═══
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ═══ Secrets ═══
+secrets.h
+credentials.h
+*_secret.h
+
+# ═══ Temp ═══
+*.tmp
+*.log
+*.bak
