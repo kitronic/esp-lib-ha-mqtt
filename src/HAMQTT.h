@@ -54,7 +54,6 @@ public:
     bool addSwitch(const char* id, const char* name,
                    const char* icon = "mdi:toggle-switch");
 
-    // ⚠️ optionsJson يجب أن يكون string literal (flash)
     bool addSelect(const char* id, const char* name,
                    const char* optionsJson,
                    const char* icon = "mdi:format-list-bulleted");
@@ -76,6 +75,12 @@ public:
                       unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
     bool publishState(const char* entityId, int value,
                       unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
+    // ✅ جديد: overloads للأنواع unsigned
+    bool publishState(const char* entityId, unsigned int value,
+                      unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
+    bool publishState(const char* entityId, unsigned long value,
+                      unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
+
     bool publishBinaryState(const char* entityId, bool on,
                             unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
     bool publishRaw(const char* topic, const char* value,
