@@ -14,7 +14,7 @@ HAMQTT ha(&wifiClient);
 
 // ═══ استقبال الأوامر ═══
 void onCommandReceived(const char* topic, const char* payload) {
-    Serial.printf("📥 Command: %s => %s\n", topic, payload);
+    Serial.printf("Command: %s => %s\n", topic, payload);
 }
 
 void setup() {
@@ -22,14 +22,14 @@ void setup() {
     delay(500);
     Serial.println("\n\n=== HAMQTT Basic Example ===");
 
-    // ═══ WiFi ═══ 
+    // ═══ WiFi ═══
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     Serial.print("Connecting to WiFi");
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
     }
-    Serial.printf("\n✅ WiFi OK - IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("\nWiFi OK - IP: %s\n", WiFi.localIP().toString().c_str());
 
     // ═══ HAMQTT Setup ═══
     ha.setServer(MQTT_SERVER, MQTT_PORT, MQTT_USER, MQTT_PASS);
@@ -57,12 +57,12 @@ void setup() {
 
     // ═══ بدء الاتصال ═══
     if (ha.begin()) {
-        Serial.println("✅ MQTT Connected");
+        Serial.println("MQTT Connected");
         delay(1000);
         ha.publishDiscovery();
-        Serial.println("✅ Discovery published");
+        Serial.println("Discovery published");
     } else {
-        Serial.println("❌ MQTT Connection failed");
+        Serial.println("MQTT Connection failed");
     }
 }
 
@@ -81,7 +81,7 @@ void loop() {
             ha.publishState("solar_power", 2100);
             ha.publishState("grid_voltage", 230.1f, 1);
             ha.publishState("temperature", 42.3f, 1);
-ha.pu
+
             ha.publishBinaryState("grid_online", true);
             ha.publishBinaryState("battery_low", false);
         }

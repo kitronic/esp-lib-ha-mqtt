@@ -1,8 +1,6 @@
 #include "HAMQTT.h"
+#include "HADiscovery.h"
 
-// ═══════════════════════════════════════════
-//              Constructor
-// ═══════════════════════════════════════════
 HAMQTT::HAMQTT(Client* networkClient)
     : _mqtt(*networkClient), _networkClient(networkClient)
 {
@@ -58,11 +56,20 @@ void HAMQTT::setDevice(const char* id, const char* name,
                        const char* manufacturer, const char* model,
                        const char* swVersion)
 {
-    strncpy(_deviceId,  id,  sizeof(_deviceId)  - 1);   _deviceId[sizeof(_deviceId)-1]  = '\0';
-    strncpy(_deviceName, name, sizeof(_deviceName) - 1); _deviceName[sizeof(_deviceName)-1] = '\0';
-    strncpy(_manufacturer, manufacturer, sizeof(_manufacturer)-1); _manufacturer[sizeof(_manufacturer)-1]='\0';
-    strncpy(_model, model, sizeof(_model)-1);           _model[sizeof(_model)-1]='\0';
-    strncpy(_swVersion, swVersion, sizeof(_swVersion)-1); _swVersion[sizeof(_swVersion)-1]='\0';
+    strncpy(_deviceId, id, sizeof(_deviceId) - 1);
+    _deviceId[sizeof(_deviceId) - 1] = '\0';
+
+    strncpy(_deviceName, name, sizeof(_deviceName) - 1);
+    _deviceName[sizeof(_deviceName) - 1] = '\0';
+
+    strncpy(_manufacturer, manufacturer, sizeof(_manufacturer) - 1);
+    _manufacturer[sizeof(_manufacturer) - 1] = '\0';
+
+    strncpy(_model, model, sizeof(_model) - 1);
+    _model[sizeof(_model) - 1] = '\0';
+
+    strncpy(_swVersion, swVersion, sizeof(_swVersion) - 1);
+    _swVersion[sizeof(_swVersion) - 1] = '\0';
 }
 
 // ═══════════════════════════════════════════
@@ -72,8 +79,6 @@ bool HAMQTT::begin() {
     if (!_server || _server[0] == '\0') return false;
 
     _mqtt.setServer(_server, _port);
-
-    // Buffer كبير شوي للـ discovery payloads
     _mqtt.setBufferSize(512);
     _mqtt.setKeepAlive(30);
 
@@ -99,8 +104,8 @@ bool HAMQTT::connected() {
 void HAMQTT::reconnect() {
     if (_mqtt.connected()) return;
 
-    // Last Will = offline
-    const char* willTopic = (_availabilityTopic[0] != '\0') ? _availabilityTopic : nullptr;
+    const char* willTopic = (_availabilityTopic[0] != '\0')
+                            ? _availabilityTopic : nullptr;
 
     bool ok;
     if (_user && _user[0] != '\0') {
@@ -111,35 +116,34 @@ void HAMQTT::reconnect() {
                            willTopic, 0, true, "offline");
     }
 
-    if (ok) {
-        // انشر online
-        if (_availabilityTopic[0] != '\0') {
-            _mqtt.publish(_availabilityTopic, "online", true);
-        }
+    if (!ok) return;
 
-        // اشترك في command topics
-        if (_commandCallback) {
-            for (uint8_t i = 0; i < _entityCount; i++) {
-                HAEntity& e = _entities[i];
-                if (e.used && (e.type == HA_BUTTON || e.type == HA_SWITCH)) {
-                    char topic[HA_TOPIC_LEN];
-                    _buildCommandTopic(topic, sizeof(topic), e.id);
-                    _mqtt.subscribe(topic);
-                }
-            }
-        }
-
-        // استقبل الأوامر
-        _mqtt.setCallback([this](char* topic, uint8_t* payload, unsigned int len) {
-            if (_commandCallback) {
-                char buf[128];
-                unsigned int n = (len < sizeof(buf) - 1) ? len : sizeof(buf) - 1;
-                memcpy(buf, payload, n);
-                buf[n] = '\0';
-                _commandCallback(topic, buf);
-            }
-        });
+    if (_availabilityTopic[0] != '\0') {
+        _mqtt.publish(_availabilityTopic, "online", true);
     }
+
+    // اشترك في command topics
+    if (_commandCallback) {
+        for (uint8_t i = 0; i < _entityCount; i++) {
+            HAEntity& e = _entities[i];
+            if (e.used && (e.type == HA_BUTTON || e.type == HA_SWITCH)) {
+                char topic[HA_TOPIC_LEN];
+                _buildCommandTopic(topic, sizeof(topic), e.id);
+                _mqtt.subscribe(topic);
+            }
+        }
+    }
+
+    // تسجيل callback
+    _mqtt.setCallback([this](char* topic, uint8_t* payload, unsigned int len) {
+        if (_commandCallback) {
+            char buf[128];
+            unsigned int n = (len < sizeof(buf) - 1) ? len : sizeof(buf) - 1;
+            memcpy(buf, payload, n);
+            buf[n] = '\0';
+            _commandCallback(topic, buf);
+        }
+    });
 }
 
 // ═══════════════════════════════════════════
@@ -165,11 +169,13 @@ bool HAMQTT::addSensor(const char* id, const char* name,
     e.type = HA_SENSOR;
     e.used = true;
     e.retained = retained;
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN-1]='\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN-1]='\0';
-    strncpy(e.unit, unit, HA_UNIT_LEN - 1);     e.unit[HA_UNIT_LEN-1]='\0';
-    strncpy(e.deviceClass, deviceClass, HA_DC_LEN - 1); e.deviceClass[HA_DC_LEN-1]='\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN-1]='\0';
+
+    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
+    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
+    strncpy(e.unit, unit, HA_UNIT_LEN - 1);     e.unit[HA_UNIT_LEN - 1] = '\0';
+    strncpy(e.deviceClass, deviceClass, HA_DC_LEN - 1);
+    e.deviceClass[HA_DC_LEN - 1] = '\0';
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
     return true;
 }
 
@@ -183,10 +189,13 @@ bool HAMQTT::addBinarySensor(const char* id, const char* name,
     e.type = HA_BINARY_SENSOR;
     e.used = true;
     e.retained = true;
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN-1]='\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN-1]='\0';
-    strncpy(e.deviceClass, deviceClass, HA_DC_LEN - 1); e.deviceClass[HA_DC_LEN-1]='\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN-1]='\0';
+
+    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
+    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
+    strncpy(e.deviceClass, deviceClass, HA_DC_LEN - 1);
+    e.deviceClass[HA_DC_LEN - 1] = '\0';
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
+    e.unit[0] = '\0';
     return true;
 }
 
@@ -198,9 +207,12 @@ bool HAMQTT::addButton(const char* id, const char* name, const char* icon) {
     e.type = HA_BUTTON;
     e.used = true;
     e.retained = true;
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN-1]='\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN-1]='\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN-1]='\0';
+
+    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
+    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
+    e.unit[0] = '\0';
+    e.deviceClass[0] = '\0';
     return true;
 }
 
@@ -212,9 +224,12 @@ bool HAMQTT::addSwitch(const char* id, const char* name, const char* icon) {
     e.type = HA_SWITCH;
     e.used = true;
     e.retained = true;
-    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN-1]='\0';
-    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN-1]='\0';
-    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN-1]='\0';
+
+    strncpy(e.id, id, HA_ID_LEN - 1);           e.id[HA_ID_LEN - 1] = '\0';
+    strncpy(e.name, name, HA_NAME_LEN - 1);     e.name[HA_NAME_LEN - 1] = '\0';
+    strncpy(e.icon, icon, HA_ICON_LEN - 1);     e.icon[HA_ICON_LEN - 1] = '\0';
+    e.unit[0] = '\0';
+    e.deviceClass[0] = '\0';
     return true;
 }
 
@@ -231,24 +246,6 @@ bool HAMQTT::_buildCommandTopic(char* buf, size_t len, const char* entityId) {
     return (n > 0 && (size_t)n < len);
 }
 
-bool HAMQTT::_buildDiscoveryTopic(char* buf, size_t len,
-                                  const char* component, const char* entityId)
-{
-    int n = snprintf(buf, len, "%s/%s/%s/%s/config",
-                     _discoveryPrefix, component, _deviceId, entityId);
-    return (n > 0 && (size_t)n < len);
-}
-
-const char* HAMQTT::_typeToComponent(HAEntityType type) {
-    switch (type) {
-        case HA_SENSOR:        return "sensor";
-        case HA_BINARY_SENSOR: return "binary_sensor";
-        case HA_BUTTON:        return "button";
-        case HA_SWITCH:        return "switch";
-    }
-    return "sensor";
-}
-
 // ═══════════════════════════════════════════
 //              Publish Discovery
 // ═══════════════════════════════════════════
@@ -258,134 +255,55 @@ bool HAMQTT::publishDiscovery(const char* entityId) {
     HAEntity* e = _findEntity(entityId);
     if (!e) return false;
 
+    HADiscovery::Context ctx;
+    ctx.deviceId          = _deviceId;
+    ctx.deviceName        = _deviceName;
+    ctx.manufacturer      = _manufacturer;
+    ctx.model             = _model;
+    ctx.swVersion         = _swVersion;
+    ctx.stateTopicPrefix  = _stateTopicPrefix;
+    ctx.availabilityTopic = _availabilityTopic;
+
     char topic[HA_TOPIC_LEN];
+    const char* component = HADiscovery::typeToComponent(e->type);
+
+    if (!HADiscovery::buildTopic(topic, sizeof(topic),
+                                 _discoveryPrefix, component,
+                                 _deviceId, e->id)) {
+        return false;
+    }
+
     char payload[512];
+    int len = 0;
 
-    const char* component = _typeToComponent(e->type);
-    if (!_buildDiscoveryTopic(topic, sizeof(topic), component, e->id)) return false;
-
-    // ═══ بناء JSON حسب النوع ═══
-    int n = 0;
-
-    if (e->type == HA_SENSOR) {
-        char stateTopic[HA_TOPIC_LEN];
-        _buildStateTopic(stateTopic, sizeof(stateTopic), e->id);
-
-        n += snprintf(payload + n, sizeof(payload) - n,
-            "{\"name\":\"%s\","
-            "\"unique_id\":\"%s_%s\","
-            "\"state_topic\":\"%s\","
-            "\"device\":{\"identifiers\":[\"%s\"],\"name\":\"%s\"",
-            e->name, _deviceId, e->id, stateTopic,
-            _deviceId, _deviceName);
-
-        if (_manufacturer[0]) n += snprintf(payload + n, sizeof(payload)-n, ",\"manufacturer\":\"%s\"", _manufacturer);
-        if (_model[0])        n += snprintf(payload + n, sizeof(payload)-n, ",\"model\":\"%s\"", _model);
-        if (_swVersion[0])    n += snprintf(payload + n, sizeof(payload)-n, ",\"sw_version\":\"%s\"", _swVersion);
-
-        n += snprintf(payload + n, sizeof(payload)-n, "}");
-
-        if (e->unit[0])        n += snprintf(payload + n, sizeof(payload)-n, ",\"unit_of_measurement\":\"%s\"", e->unit);
-        if (e->deviceClass[0]) n += snprintf(payload + n, sizeof(payload)-n, ",\"device_class\":\"%s\"", e->deviceClass);
-        if (e->icon[0])        n += snprintf(payload + n, sizeof(payload)-n, ",\"icon\":\"%s\"", e->icon);
-
-        if (_availabilityTopic[0]) {
-            n += snprintf(payload + n, sizeof(payload)-n,
-                ",\"availability_topic\":\"%s\","
-                "\"payload_available\":\"online\","
-                "\"payload_not_available\":\"offline\"", _availabilityTopic);
-        }
-        n += snprintf(payload + n, sizeof(payload)-n, "}");
-    }
-    else if (e->type == HA_BINARY_SENSOR) {
-        char stateTopic[HA_TOPIC_LEN];
-        _buildStateTopic(stateTopic, sizeof(stateTopic), e->id);
-
-        n += snprintf(payload + n, sizeof(payload) - n,
-            "{\"name\":\"%s\","
-            "\"unique_id\":\"%s_%s\","
-            "\"state_topic\":\"%s\","
-            "\"payload_on\":\"ON\","
-            "\"payload_off\":\"OFF\","
-            "\"device\":{\"identifiers\":[\"%s\"],\"name\":\"%s\"}",
-            e->name, _deviceId, e->id, stateTopic,
-            _deviceId, _deviceName);
-
-        if (e->deviceClass[0]) n += snprintf(payload+n, sizeof(payload)-n, ",\"device_class\":\"%s\"", e->deviceClass);
-        if (e->icon[0])        n += snprintf(payload+n, sizeof(payload)-n, ",\"icon\":\"%s\"", e->icon);
-
-        if (_availabilityTopic[0]) {
-            n += snprintf(payload + n, sizeof(payload)-n,
-                ",\"availability_topic\":\"%s\","
-                "\"payload_available\":\"online\","
-                "\"payload_not_available\":\"offline\"", _availabilityTopic);
-        }
-        n += snprintf(payload + n, sizeof(payload)-n, "}");
-    }
-    else if (e->type == HA_BUTTON) {
-        char cmdTopic[HA_TOPIC_LEN];
-        _buildCommandTopic(cmdTopic, sizeof(cmdTopic), e->id);
-
-        n += snprintf(payload + n, sizeof(payload) - n,
-            "{\"name\":\"%s\","
-            "\"unique_id\":\"%s_%s\","
-            "\"command_topic\":\"%s\","
-            "\"payload_press\":\"PRESS\","
-            "\"device\":{\"identifiers\":[\"%s\"],\"name\":\"%s\"}",
-            e->name, _deviceId, e->id, cmdTopic,
-            _deviceId, _deviceName);
-
-        if (e->icon[0]) n += snprintf(payload+n, sizeof(payload)-n, ",\"icon\":\"%s\"", e->icon);
-
-        if (_availabilityTopic[0]) {
-            n += snprintf(payload + n, sizeof(payload)-n,
-                ",\"availability_topic\":\"%s\","
-                "\"payload_available\":\"online\","
-                "\"payload_not_available\":\"offline\"", _availabilityTopic);
-        }
-        n += snprintf(payload + n, sizeof(payload)-n, "}");
-    }
-    else if (e->type == HA_SWITCH) {
-        char cmdTopic[HA_TOPIC_LEN];
-        char stateTopic[HA_TOPIC_LEN];
-        _buildCommandTopic(cmdTopic, sizeof(cmdTopic), e->id);
-        _buildStateTopic(stateTopic, sizeof(stateTopic), e->id);
-
-        n += snprintf(payload + n, sizeof(payload) - n,
-            "{\"name\":\"%s\","
-            "\"unique_id\":\"%s_%s\","
-            "\"command_topic\":\"%s\","
-            "\"state_topic\":\"%s\","
-            "\"payload_on\":\"ON\","
-            "\"payload_off\":\"OFF\","
-            "\"state_on\":\"ON\","
-            "\"state_off\":\"OFF\","
-            "\"device\":{\"identifiers\":[\"%s\"],\"name\":\"%s\"}",
-            e->name, _deviceId, e->id, cmdTopic, stateTopic,
-            _deviceId, _deviceName);
-
-        if (e->icon[0]) n += snprintf(payload+n, sizeof(payload)-n, ",\"icon\":\"%s\"", e->icon);
-
-        if (_availabilityTopic[0]) {
-            n += snprintf(payload + n, sizeof(payload)-n,
-                ",\"availability_topic\":\"%s\","
-                "\"payload_available\":\"online\","
-                "\"payload_not_available\":\"offline\"", _availabilityTopic);
-        }
-        n += snprintf(payload + n, sizeof(payload)-n, "}");
+    switch (e->type) {
+        case HA_SENSOR:
+            len = HADiscovery::buildSensor(payload, sizeof(payload), *e, ctx);
+            break;
+        case HA_BINARY_SENSOR:
+            len = HADiscovery::buildBinarySensor(payload, sizeof(payload), *e, ctx);
+            break;
+        case HA_BUTTON:
+            len = HADiscovery::buildButton(payload, sizeof(payload), *e, ctx);
+            break;
+        case HA_SWITCH:
+            len = HADiscovery::buildSwitch(payload, sizeof(payload), *e, ctx);
+            break;
     }
 
-    // انشر retained
+    if (len <= 0 || (size_t)len >= sizeof(payload)) return false;
+
     return _mqtt.publish(topic, payload, true);
 }
 
 bool HAMQTT::publishDiscovery() {
     if (!_mqtt.connected()) return false;
+
     bool allOk = true;
     for (uint8_t i = 0; i < _entityCount; i++) {
         if (_entities[i].used) {
             if (!publishDiscovery(_entities[i].id)) allOk = false;
-            delay(20); // مهم! تجنب إغراق MQTT broker
+            delay(20);
         }
     }
     return allOk;
@@ -396,6 +314,7 @@ bool HAMQTT::publishDiscovery() {
 // ═══════════════════════════════════════════
 bool HAMQTT::publishState(const char* entityId, const char* value) {
     if (!_mqtt.connected()) return false;
+
     HAEntity* e = _findEntity(entityId);
     if (!e) return false;
 
@@ -420,8 +339,10 @@ bool HAMQTT::publishBinaryState(const char* entityId, bool on) {
     return publishState(entityId, on ? "ON" : "OFF");
 }
 
-bool HAMQTT::publishAttribute(const char* entityId, const char* attr, const char* value) {
+bool HAMQTT::publishAttribute(const char* entityId, const char* attr,
+                              const char* value) {
     if (!_mqtt.connected()) return false;
+
     HAEntity* e = _findEntity(entityId);
     if (!e) return false;
 

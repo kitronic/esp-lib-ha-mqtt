@@ -11,8 +11,10 @@ enum HAEntityType : uint8_t {
     HA_SWITCH
 };
 
-// ═══ حدود الذاكرة (قابلة للتعديل) ═══
-#define HA_MAX_ENTITIES      32      // أقصى عدد كيانات
+// ═══ حدود الذاكرة (قابلة للتعديل من library.json) ═══
+#ifndef HA_MAX_ENTITIES
+#define HA_MAX_ENTITIES      32
+#endif
 #define HA_ID_LEN            32
 #define HA_NAME_LEN          48
 #define HA_UNIT_LEN          16

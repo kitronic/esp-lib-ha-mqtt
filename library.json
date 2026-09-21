@@ -5,9 +5,9 @@
   "keywords": "mqtt, home-assistant, homeassistant, autodiscovery, esp8266, esp32, iot, arduino",
   "authors": [
     {
-      "name": "اسمك",
-      "email": "your@email.com",
-      "url": "https://github.com/username"
+      "name": "Kitronic",
+      "email": "info@kitronic.tech",
+      "url": "https://github.com/kitronic"
     }
   ],
   "license": "MIT",

@@ -53,8 +53,8 @@ public:
                    const char* icon = "mdi:toggle-switch");
 
     // ═══════ نشر Discovery ═══════
-    bool publishDiscovery();                          // كل الكيانات
-    bool publishDiscovery(const char* entityId);      // كيان واحد
+    bool publishDiscovery();
+    bool publishDiscovery(const char* entityId);
 
     // ═══════ نشر الحالة ═══════
     bool publishState(const char* entityId, const char* value);
@@ -98,13 +98,9 @@ private:
     unsigned long _lastReconnect;
     HACommandCallback _commandCallback;
 
-    // ═══ Helpers داخلية ═══
     HAEntity* _findEntity(const char* id);
     bool _buildStateTopic(char* buf, size_t len, const char* entityId);
     bool _buildCommandTopic(char* buf, size_t len, const char* entityId);
-    bool _buildDiscoveryTopic(char* buf, size_t len,
-                              const char* component, const char* entityId);
-    const char* _typeToComponent(HAEntityType type);
 };
 
 #endif
