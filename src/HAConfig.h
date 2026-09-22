@@ -24,7 +24,7 @@
 #define HA_ICON_LEN          28    // "mdi:battery-70"
 #define HA_TOPIC_LEN         80    // "solar/inverter3/xxx/state"
 #define HA_CACHE_TOPIC_LEN   72    // topic for cache
-#define HA_CACHE_VALUE_LEN   28    // value for cache
+#define HA_CACHE_VALUE_LEN   96    // value for cache
 #define HA_GROUP_LEN         24    // ← ✅ جديد: "Sensors" / "Controls" / "Diagnostics"
 
 // ═══ أحجام الـ payload buffers ═══
