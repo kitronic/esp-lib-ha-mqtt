@@ -4,28 +4,31 @@
 #include <Arduino.h>
 #include "HAEntity.h"
 
-class HADiscovery {
+class HADiscovery
+{
 public:
-    struct Context {
-        const char* deviceId;
-        const char* deviceName;
-        const char* manufacturer;
-        const char* model;
-        const char* swVersion;
-        const char* stateTopicPrefix;
-        const char* availabilityTopic;
+    struct Context
+    {
+        const char *deviceId;
+        const char *deviceName;
+        const char *manufacturer;
+        const char *model;
+        const char *swVersion;
+        const char *stateTopicPrefix;
+        const char *availabilityTopic;
+        const char *group;   // ← ✅ جديد: اسم الجهاز الفرعي
     };
 
-    static int build(char* buf, size_t bufLen,
-                     const HAEntity& e, const Context& ctx);
+    static int build(char *buf, size_t bufLen,
+                     const HAEntity &e, const Context &ctx);
 
-    static bool buildTopic(char* buf, size_t bufLen,
-                           const char* discoveryPrefix,
-                           const char* component,
-                           const char* deviceId,
-                           const char* entityId);
+    static bool buildTopic(char *buf, size_t bufLen,
+                           const char *discoveryPrefix,
+                           const char *component,
+                           const char *deviceId,
+                           const char *entityId);
 
-    static const char* typeToComponent(HAEntityType type);
+    static const char *typeToComponent(HAEntityType type);
 };
 
 #endif

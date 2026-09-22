@@ -31,6 +31,10 @@ public:
     void setAvailabilityTopic(const char* topic);
     void setDiscoveryPrefix(const char* prefix = "homeassistant");
 
+    // ═══ Device Groups ═══
+    void setGroup(const char* group);   // ← ✅ جديد
+    void clearGroup();                  // ← ✅ جديد
+
     // ═══ دورة الحياة ═══
     bool begin();
     void loop();
@@ -54,20 +58,24 @@ public:
     bool addSwitch(const char* id, const char* name,
                    const char* icon = "mdi:toggle-switch");
 
+    // ✅ readOnly للـ Select
     bool addSelect(const char* id, const char* name,
                    const char* optionsJson,
-                   const char* icon = "mdi:format-list-bulleted");
+                   const char* icon = "mdi:format-list-bulleted",
+                   bool readOnly = false);
 
+    // ✅ readOnly للـ Number
     bool addNumber(const char* id, const char* name,
                    float minVal, float maxVal, float step,
                    const char* unit = "",
-                   const char* icon = "mdi:ray-vertex");
+                   const char* icon = "mdi:ray-vertex",
+                   bool readOnly = false);
 
     // ═══ Discovery ═══
     bool publishDiscovery();
     bool publishDiscovery(const char* entityId);
 
-    // ═══ نشر الحالة (مع cache) ═══
+    // ═══ نشر الحالة ═══
     bool publishState(const char* entityId, const char* value,
                       unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
     bool publishState(const char* entityId, float value,
@@ -75,12 +83,10 @@ public:
                       unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
     bool publishState(const char* entityId, int value,
                       unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
-    // ✅ جديد: overloads للأنواع unsigned
     bool publishState(const char* entityId, unsigned int value,
                       unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
     bool publishState(const char* entityId, unsigned long value,
                       unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
-
     bool publishBinaryState(const char* entityId, bool on,
                             unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
     bool publishRaw(const char* topic, const char* value,
@@ -120,6 +126,8 @@ private:
     char _manufacturer[HA_ID_LEN];
     char _model[HA_ID_LEN];
     char _swVersion[12];
+
+    char _currentGroup[HA_GROUP_LEN];   // ← ✅ جديد
 
     HAEntity _entities[HA_MAX_ENTITIES];
     uint8_t _entityCount;

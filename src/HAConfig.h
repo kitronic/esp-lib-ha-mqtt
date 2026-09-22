@@ -25,6 +25,7 @@
 #define HA_TOPIC_LEN         80    // "solar/inverter3/xxx/state"
 #define HA_CACHE_TOPIC_LEN   72    // topic for cache
 #define HA_CACHE_VALUE_LEN   28    // value for cache
+#define HA_GROUP_LEN         24    // ← ✅ جديد: "Sensors" / "Controls" / "Diagnostics"
 
 // ═══ أحجام الـ payload buffers ═══
 #define HA_DISCOVERY_BUF     768   // buffer للـ discovery JSON

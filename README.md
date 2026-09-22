@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)](https://platformio.org/)
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-blue.svg)](https://www.arduino.cc/)
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/kitronic/esp-lib-ha-mqtt)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/kitronic/esp-lib-ha-mqtt)
 
 ---
 
@@ -13,7 +13,7 @@
 
 **HAMQTT** مكتبة أردوينو احترافية تبسّط ربط أجهزة **ESP8266 / ESP32** مع **Home Assistant** عبر **MQTT Auto-Discovery**.
 
-**الإصدار 2.1** مُحسّن بالكامل للذاكرة — يستهلك **~4 KB فقط RAM ثابتة** و**0 bytes heap**.
+**الإصدار 2.2** يضيف **Device Groups** لتنظيم الكيانات في أجهزة فرعية، و **Read-Only Entities** للعرض فقط — مع الحفاظ على **~4 KB فقط RAM ثابتة** و**0 bytes heap**.
 
 ### 🎯 لماذا HAMQTT؟
 
@@ -24,20 +24,24 @@
 - 🎨 **6 أنواع كيانات**: sensor, binary_sensor, button, switch, select, number
 - 📊 **state_class تلقائي**: دعم Energy Dashboard
 - 🔌 **يعمل مع BearSSL**: يوفّر ذاكرة كافية لـ HTTPS
+- 🗂️ **Device Groups**: قسّم 80+ entity على أجهزة فرعية
+- 👁️ **Read-Only Entities**: اعرض القيم بدون إمكانية التغيير
 
 ---
 
 ## 📊 مقارنة الأداء
 
-| الميزة | v1.x | v2.0 | v2.1 |
-|--------|:----:|:----:|:----:|
-| RAM ثابتة | ~11 KB | ~11 KB | **~4 KB** |
-| Heap usage | 0 | 0 | **0** |
-| String allocations | لا | لا | **لا** |
-| يشتغل على ESP8266 | ⚠️ | ❌ | ✅ |
-| يدعم HTTPS | ❌ | ❌ | ✅ |
-| Cache ذكي | ❌ | ✅ | ✅ |
-| Select + Number | ❌ | ✅ | ✅ |
+| الميزة | v1.x | v2.0 | v2.1 | v2.2 |
+|--------|:----:|:----:|:----:|:----:|
+| RAM ثابتة | ~11 KB | ~11 KB | ~4 KB | **~4 KB** |
+| Heap usage | 0 | 0 | 0 | **0** |
+| String allocations | لا | لا | لا | **لا** |
+| يشتغل على ESP8266 | ⚠️ | ❌ | ✅ | ✅ |
+| يدعم HTTPS | ❌ | ❌ | ✅ | ✅ |
+| Cache ذكي | ❌ | ✅ | ✅ | ✅ |
+| Select + Number | ❌ | ✅ | ✅ | ✅ |
+| Device Groups | ❌ | ❌ | ❌ | **✅** |
+| Read-Only Entities | ❌ | ❌ | ❌ | **✅** |
 
 ---
 
@@ -59,6 +63,8 @@
 | ✅ PROGMEM | strings في Flash |
 | ✅ Zero Heap | لا String، لا new |
 | ✅ Multi-Platform | ESP8266 + ESP32 |
+| ✅ **Device Groups** | تنظيم الأجهزة الفرعية |
+| ✅ **Read-Only Entities** | للعرض فقط |
 
 ---
 
@@ -100,7 +106,7 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED) delay(500);
 
     ha.setServer(MQTT_SERVER, 1883);
-    ha.setDevice("my_device", "My Device", "Me", "v1", "2.1.0");
+    ha.setDevice("my_device", "My Device", "Me", "v1", "2.2.0");
     ha.setStateTopicPrefix("home/my_device");
     ha.setAvailabilityTopic("home/my_device/status");
 
@@ -141,10 +147,43 @@ void loop() {
 |--------|-------|
 | `HAMQTT(Client* networkClient)` | Constructor - يمرّر WiFiClient |
 | `setServer(server, port, user, pass)` | إعدادات MQTT Broker |
-| `setDevice(id, name, manufacturer, model, version)` | معلومات الجهاز |
+| `setDevice(id, name, manufacturer, model, version)` | معلومات الجهاز الرئيسي |
 | `setStateTopicPrefix(prefix)` | بادئة topics الحالة |
 | `setAvailabilityTopic(topic)` | topic التوفر |
 | `setDiscoveryPrefix(prefix)` | بادئة discovery (افتراضي: `homeassistant`) |
+
+### 🗂️ Device Groups (جديد في v2.2)
+
+| الدالة | الوصف |
+|--------|-------|
+| `setGroup(name)` | بدء مجموعة جديدة — الكيانات التالية تنتمي لها |
+| `clearGroup()` | إعادة للوضع العادي (جهاز واحد) |
+
+**مثال:**
+
+```cpp
+// ═══ Sensors ═══
+ha.setGroup("Sensors");
+ha.addSensor("battery_voltage", ...);
+ha.addSensor("temperature", ...);
+
+// ═══ Controls ═══
+ha.setGroup("Controls");
+ha.addButton("restart", ...);
+ha.addSwitch("relay", ...);
+
+// ═══ Diagnostics ═══
+ha.setGroup("Diagnostics");
+ha.addSensor("wifi_ip", ...);
+ha.addSensor("firmware_version", ...);
+```
+
+النتيجة في HA:
+
+- 🏭 My Device (رئيسي)
+- 📊 My Device - Sensors
+- ⚙️ My Device - Controls
+- 🔧 My Device - Diagnostics
 
 ### 🔄 دورة الحياة
 
@@ -163,14 +202,37 @@ void loop() {
 | `addBinarySensor(id, name, deviceClass, icon)` | إضافة binary_sensor |
 | `addButton(id, name, icon)` | إضافة button |
 | `addSwitch(id, name, icon)` | إضافة switch |
-| `addSelect(id, name, optionsJson, icon)` | إضافة select |
-| `addNumber(id, name, min, max, step, unit, icon)` | إضافة number |
+| `addSelect(id, name, optionsJson, icon, readOnly)` | إضافة select |
+| `addNumber(id, name, min, max, step, unit, icon, readOnly)` | إضافة number |
+
+### 👁️ Read-Only Entities (جديد في v2.2)
+
+عند تمرير `readOnly = true`، لن يضيف Home Assistant `command_topic` — يعني المستخدم يشوف القيمة لكن ما يقدر يغيّرها.
+
+```cpp
+// ═══ Select قابل للتغيير ═══
+ha.addSelect("output_priority", "Output Priority",
+             "[\"UtilitySolarBat\",\"SolarUtilityBat\",\"SolarBatUtility\"]");
+// readOnly = false (افتراضي)
+
+// ═══ Select للعرض فقط ═══
+ha.addSelect("inverter_mode", "Inverter Mode (Read-Only)",
+             "[\"Power On\",\"Standby\",\"Line\",\"Battery\"]",
+             "mdi:eye",
+             true);   // ← readOnly!
+
+// ═══ Number للعرض فقط ═══
+ha.addNumber("current_cutoff_display", "Current Cutoff Voltage",
+             40.0, 54.0, 0.1, "V",
+             "mdi:eye",
+             true);   // ← readOnly!
+```
 
 ### 📤 نشر الحالة
 
 | الدالة | الوصف |
 |--------|-------|
-| `publishState(id, value, [decimals], [heartbeatMs])` | نشر قيمة |
+| `publishState(id, value, [decimals], [heartbeatMs])` | نشر قيمة (يدعم `const char*`, `float`, `int`, `unsigned int`, `unsigned long`) |
 | `publishBinaryState(id, bool, [heartbeatMs])` | نشر ON/OFF |
 | `publishRaw(topic, value, [retain], [heartbeatMs])` | نشر مباشر |
 
@@ -273,27 +335,38 @@ ha.onCommand([](const char* topic, const char* payload) {
 });
 ```
 
-### مثال 7: جهاز كامل (إنفرتر شمسي)
+### مثال 7: جهاز كامل مع Groups (جديد)
 
 ```cpp
 ha.setDevice("pip_inverter_03", "PIP Solar Inverter 3",
-             "Voltronic", "Axpert/PIP/MAX2", "2.1.0");
+             "Voltronic", "Axpert/PIP/MAX2", "2.2.0");
 ha.setStateTopicPrefix("solar/inverter3");
 ha.setAvailabilityTopic("solar/inverter3/status");
 
+// ═══ Sensors ═══
+ha.setGroup("Sensors");
 ha.addSensor("battery_voltage", "Battery Voltage", "V", "voltage", "mdi:battery", true);
 ha.addSensor("battery_percent", "Battery %", "%", "battery", "mdi:battery-70", true);
 ha.addSensor("load_power", "Load Power", "W", "power", "mdi:flash", true);
 ha.addSensor("solar_power", "Solar Power", "W", "power", "mdi:solar-power", true);
 
-ha.addBinarySensor("grid_online", "Grid Online", "plug");
-ha.addBinarySensor("battery_low", "Battery Low", "battery");
-
+// ═══ Controls ═══
+ha.setGroup("Controls");
 ha.addButton("check_updates", "Check Updates", "mdi:cloud-download");
 ha.addSwitch("auto_update", "Auto Update", "mdi:update");
-ha.addSelect("inverter_mode", "Inverter Mode",
-             "[\"Power On\",\"Standby\",\"Line\",\"Battery\"]");
 ha.addNumber("battery_cutoff", "Cut-off Voltage", 40.0, 54.0, 0.1, "V");
+
+// ═══ Diagnostics ═══
+ha.setGroup("Diagnostics");
+ha.addSensor("wifi_ip", "WiFi IP");
+ha.addSensor("firmware_version", "Firmware Version");
+ha.addBinarySensor("grid_online", "Grid Online", "plug");
+
+// ═══ Read-Only Display ═══
+ha.addSelect("inverter_mode", "Inverter Mode",
+             "[\"Power On\",\"Standby\",\"Line\",\"Battery\"]",
+             "mdi:eye",
+             true);   // ← readOnly
 ```
 
 ---
@@ -373,6 +446,27 @@ home/my_device/
 home/my_device/status     → online / offline
 ```
 
+### Device Groups (v2.2)
+
+عند استخدام `setGroup("Sensors")`، تتغيّر بنية الـ discovery:
+
+```text
+homeassistant/sensor/my_device_Sensors/temperature/config
+                            ↑
+                      deviceId_groupName
+```
+
+النتيجة في HA:
+
+```text
+my_device (رئيسي)
+  ├── my_device_Sensors
+  ├── my_device_Controls
+  └── my_device_Diagnostics
+```
+
+مع `via_device` لربطهم بالرئيسي.
+
 ---
 
 ## ⚙️ إعدادات متقدمة
@@ -397,6 +491,7 @@ build_flags =
 | `HA_MQTT_BUFFER_SIZE` | 768 | حجم buffer MQTT |
 | `HA_DISCOVERY_BUF` | 768 | حجم buffer discovery |
 | `HA_DEFAULT_HEARTBEAT` | 60000 | heartbeat افتراضي (ms) |
+| `HA_GROUP_LEN` | 24 | أقصى طول اسم Group |
 
 ### إعدادات موصى بها حسب الجهاز
 
@@ -409,22 +504,22 @@ build_flags =
     -D HA_MQTT_BUFFER_SIZE=768
 ```
 
+**ESP8266 مع 80+ كيان:**
+
+```ini
+build_flags =
+    -D HA_MAX_ENTITIES=80
+    -D HA_MAX_CACHE=40
+    -D HA_MQTT_BUFFER_SIZE=1024
+```
+
 **ESP32 (ذاكرة وفيرة):**
 
 ```ini
 build_flags =
-    -D HA_MAX_ENTITIES=48
-    -D HA_MAX_CACHE=64
+    -D HA_MAX_ENTITIES=128
+    -D HA_MAX_CACHE=128
     -D HA_MQTT_BUFFER_SIZE=2048
-```
-
-**ESP8266 مع BearSSL (HTTPS):**
-
-```ini
-build_flags =
-    -D HA_MAX_ENTITIES=12
-    -D HA_MAX_CACHE=16
-    -D HA_MQTT_BUFFER_SIZE=512
 ```
 
 ### تغيير Heartbeat
@@ -445,6 +540,25 @@ ha.publishState("temperature", 24.5f, 1, 30000);
 2. تأكد من `setDiscoveryPrefix("homeassistant")`
 3. افتح MQTT Explorer وافحص topic `homeassistant/sensor/...`
 4. أعد تشغيل Home Assistant
+
+### المشكلة: Entities مكررة بـ `_2`
+
+**السبب:** تغيير `deviceId` بعد النشر الأول.
+
+**الحل:**
+
+1. امسح الـ retained topics القديمة من MQTT
+2. أعد تشغيل HA
+3. أعد تشغيل ESP
+
+### المشكلة: Read-Only Select لا يزال قابلاً للتغيير
+
+**السبب:** النسخة القديمة من HA مخزّنة.
+
+**الحل:**
+
+1. امسح retained: `homeassistant/select/<device>/<entity>/config`
+2. أعد تشغيل HA
 
 ### المشكلة: MQTT Connection failed
 
@@ -477,13 +591,6 @@ String s = "[\"A\",\"B\"]";
 ha.addSelect("mode", "Mode", s.c_str());
 ```
 
-### المشكلة: بعض الكيانات لا تنشر حالتها
-
-**الحل:**
-
-- Cache قد يمنع النشر إذا القيمة ما تغيّرت — هذا طبيعي
-- للـ force publish: `ha.clearCache()` قبل النشر
-
 ---
 
 ## 🧪 قياس الذاكرة
@@ -503,13 +610,13 @@ Serial.printf("Entities count: %u\n", ha.entityCount());
 
 ```text
 Free heap BEFORE: 45200
-sizeof(HAEntity): 116 bytes
+sizeof(HAEntity): 140 bytes
 sizeof(HAStateCache): 2696 bytes
-sizeof(HAMQTT): 4200 bytes
+sizeof(HAMQTT): 4800 bytes
 Free heap AFTER WiFi: 32500
-Free heap AFTER setup: 29800
-Free heap AFTER all: 28400
-Max block: 22100
+Free heap AFTER setup: 27000
+Free heap AFTER all: 25000
+Max block: 19000
 ```
 
 ---
@@ -554,13 +661,14 @@ Max block: 22100
 - [x] Smart Cache
 - [x] Zero Heap
 - [x] PROGMEM support
+- [x] Device Groups (v2.2)
+- [x] Read-Only Entities (v2.2)
 - [ ] Light entities
 - [ ] Cover entities
 - [ ] Climate entities
 - [ ] Fan entities
 - [ ] Web configuration portal
 - [ ] Support for ESP32-C3 / S3
-- [ ] Device Groups
 
 ---
 
@@ -606,6 +714,6 @@ Max block: 22100
 
 Made with ❤️ for the Home Assistant community
 
-**v2.1.0** — Lightweight Edition
+**v2.2.0** — Groups Edition
 
 </div>

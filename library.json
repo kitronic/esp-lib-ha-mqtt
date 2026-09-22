@@ -1,8 +1,8 @@
 {
   "name": "HAMQTT",
-  "version": "2.1.0",
-  "description": "Lightweight Home Assistant MQTT Auto-Discovery with smart caching. Optimized for ESP8266 memory constraints. Supports sensors, binary sensors, buttons, switches, selects, and numbers.",
-  "keywords": "mqtt, home-assistant, homeassistant, autodiscovery, esp8266, esp32, iot, arduino, cache, lightweight, memory-optimized",
+  "version": "2.2.0",
+  "description": "Lightweight Home Assistant MQTT Auto-Discovery with smart caching. Features Device Groups for organizing entities into sub-devices, and Read-Only entities for display purposes. Optimized for ESP8266 memory constraints. Supports sensors, binary sensors, buttons, switches, selects, and numbers.",
+  "keywords": "mqtt, home-assistant, homeassistant, autodiscovery, esp8266, esp32, iot, arduino, cache, lightweight, memory-optimized, groups, device-groups, read-only, sub-devices",
   "authors": [
     {
       "name": "Kitronic",
