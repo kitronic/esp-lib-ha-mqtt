@@ -1,7 +1,36 @@
-#include <ESP8266WiFi.h>
-#include <HAMQTT.h>
-#include "config.h" // ← 🔧 الآن يستخدم config.h
+// ═══════════════════════════════════════════
+//   HAMQTT v2.2.1 — Full Demo (cross-platform)
+//   يعمل على ESP8266 و ESP32
+// ═══════════════════════════════════════════
 
+#if defined(ESP8266)
+#include <ESP8266WiFi.h>
+#elif defined(ESP32)
+#include <WiFi.h>
+#endif
+
+#include <HAMQTT.h>
+
+// ═══════════════════════════════════════════
+//              الإعدادات
+// ═══════════════════════════════════════════
+#define WIFI_SSID "YOUR_WIFI"
+#define WIFI_PASS "YOUR_PASS"
+#define MQTT_SERVER "192.168.68.100"
+#define MQTT_PORT 1883
+#define MQTT_USER "" // اتركه فاضي إذا غير مطلوب
+#define MQTT_PASS ""
+
+#define DEVICE_ID "demo_device"
+#define DEVICE_NAME "HAMQTT Demo Device"
+#define DEVICE_MANUF "Kitronic"
+#define DEVICE_MODEL "HAMQTT-Demo"
+#define FW_VERSION "2.2.1"
+
+#define STATE_PREFIX "demo/device"
+#define AVAIL_TOPIC "demo/device/status"
+
+// ═══════════════════════════════════════════
 WiFiClient wifiClient;
 HAMQTT ha(&wifiClient);
 
@@ -55,7 +84,7 @@ void setup()
 
     Serial.println();
     Serial.println(F("═══════════════════════════════════════"));
-    Serial.println(F("     HAMQTT v2.2.0 Demo"));
+    Serial.println(F("     HAMQTT v2.2.1 Demo"));
     Serial.println(F("═══════════════════════════════════════"));
 
     Serial.printf("Free heap BEFORE:       %u bytes\n", ESP.getFreeHeap());
@@ -65,7 +94,7 @@ void setup()
 
     // ═══ WiFi ═══
     Serial.print(F("Connecting to WiFi"));
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
@@ -75,8 +104,8 @@ void setup()
     Serial.printf("WiFi connected: %s\n", WiFi.localIP().toString().c_str());
     Serial.printf("Free heap AFTER WiFi:   %u bytes\n", ESP.getFreeHeap());
 
-    // ═══ HAMQTT ═══
-    ha.setServer(MQTT_BROKER, MQTT_PORT,
+    // ═══ HAMQTT Configuration ═══
+    ha.setServer(MQTT_SERVER, MQTT_PORT,
                  (MQTT_USER[0] ? MQTT_USER : nullptr),
                  (MQTT_PASS[0] ? MQTT_PASS : nullptr));
     ha.setDevice(DEVICE_ID, DEVICE_NAME,
@@ -166,15 +195,13 @@ void loop()
     {
         lastPublish = millis();
 
-        // ═══ Sensors ═══
         ha.publishState("temperature", 22.5f + random(-20, 21) / 10.0f, 1);
-        ha.publishState("humidity", 45 + random(-5, 6)); // ← 🔧 range متماثل
+        ha.publishState("humidity", 45 + random(-5, 6));
         ha.publishState("battery_voltage", 12.6f + random(-5, 6) / 100.0f, 2);
         ha.publishState("battery_percent", 75 + random(-3, 4));
         ha.publishState("power_usage", 850 + random(-50, 51));
         ha.publishState("signal_strength", WiFi.RSSI());
 
-        // ═══ Diagnostics ═══
         IPAddress ip = WiFi.localIP();
         char ipBuf[16];
         snprintf(ipBuf, sizeof(ipBuf), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
@@ -186,11 +213,9 @@ void loop()
         ha.publishBinaryState("wifi_connected", WiFi.status() == WL_CONNECTED);
         ha.publishBinaryState("mqtt_connected", ha.connected());
 
-        // ═══ Read-Only Display ═══
         ha.publishState("device_status", "Running");
         ha.publishState("current_threshold_display", 50.0f, 1);
 
-        // ═══ Debug ═══
         static unsigned long counter = 0;
         if (++counter % 12 == 0)
         {
@@ -201,7 +226,6 @@ void loop()
         }
     }
 
-    // ═══ محاكاة أحداث ═══
     static unsigned long lastEvent = 0;
     if (millis() - lastEvent > 30000)
     {
