@@ -1,43 +1,65 @@
 #include "HAStateCache.h"
 #include <string.h>
 
-HAStateCache::HAStateCache() : _count(0) {
+HAStateCache::HAStateCache() : _count(0)
+{
     memset(_entries, 0, sizeof(_entries));
 }
 
-void HAStateCache::clear() {
-    for (uint8_t i = 0; i < HA_MAX_CACHE; i++) {
+void HAStateCache::clear()
+{
+    for (uint8_t i = 0; i < HA_MAX_CACHE; i++)
+    {
         _entries[i].used = false;
     }
     _count = 0;
 }
 
-int HAStateCache::_find(const char* topic) {
-    for (uint8_t i = 0; i < _count; i++) {
+int HAStateCache::_find(const char *topic)
+{
+    for (uint8_t i = 0; i < _count; i++)
+    {
         if (_entries[i].used && strcmp(_entries[i].topic, topic) == 0)
             return i;
     }
     return -1;
 }
 
-bool HAStateCache::shouldPublish(const char* topic, const char* value,
+bool HAStateCache::shouldPublish(const char *topic, const char *value,
                                  unsigned long heartbeatMs)
 {
     int idx = _find(topic);
-    if (idx < 0) return true;
-    if (strcmp(_entries[idx].value, value) != 0) return true;
-    if ((millis() - _entries[idx].lastTime) >= heartbeatMs) return true;
+    if (idx < 0)
+        return true;
+    if (strcmp(_entries[idx].value, value) != 0)
+        return true;
+    if ((millis() - _entries[idx].lastTime) >= heartbeatMs)
+        return true;
     return false;
 }
 
-void HAStateCache::commit(const char* topic, const char* value) {
+void HAStateCache::commit(const char *topic, const char *value)
+{
     int idx = _find(topic);
 
-    if (idx < 0) {
-        if (_count >= HA_MAX_CACHE) {
-            // استبدل الأقدم (LRU بسيط: نستبدل الأول)
+    if (idx < 0)
+    {
+        if (_count >= HA_MAX_CACHE)
+        {
+            // ← 🔧 استبدال الأقدم زمنياً (LRU فعلي)
             idx = 0;
-        } else {
+            unsigned long oldest = _entries[0].lastTime;
+            for (uint8_t i = 1; i < HA_MAX_CACHE; i++)
+            {
+                if (_entries[i].used && _entries[i].lastTime < oldest)
+                {
+                    oldest = _entries[i].lastTime;
+                    idx = i;
+                }
+            }
+        }
+        else
+        {
             idx = _count++;
         }
         _entries[idx].used = true;

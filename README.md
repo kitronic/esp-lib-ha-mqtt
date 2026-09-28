@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange.svg)](https://platformio.org/)
 [![Arduino](https://img.shields.io/badge/Arduino-Compatible-blue.svg)](https://www.arduino.cc/)
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/kitronic/esp-lib-ha-mqtt)
+[![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](https://github.com/kitronic/esp-lib-ha-mqtt)
 
 ---
 
@@ -31,17 +31,17 @@
 
 ## 📊 مقارنة الأداء
 
-| الميزة | v1.x | v2.0 | v2.1 | v2.2 |
-|--------|:----:|:----:|:----:|:----:|
-| RAM ثابتة | ~11 KB | ~11 KB | ~4 KB | **~4 KB** |
-| Heap usage | 0 | 0 | 0 | **0** |
-| String allocations | لا | لا | لا | **لا** |
-| يشتغل على ESP8266 | ⚠️ | ❌ | ✅ | ✅ |
-| يدعم HTTPS | ❌ | ❌ | ✅ | ✅ |
-| Cache ذكي | ❌ | ✅ | ✅ | ✅ |
-| Select + Number | ❌ | ✅ | ✅ | ✅ |
-| Device Groups | ❌ | ❌ | ❌ | **✅** |
-| Read-Only Entities | ❌ | ❌ | ❌ | **✅** |
+| الميزة | v1.x | v2.0 | v2.1 | v2.2 | v2.2.1 |
+|--------|:----:|:----:|:----:|:----:|:------:|
+| RAM ثابتة | ~11 KB | ~11 KB | ~4 KB | ~4 KB | **~4 KB** |
+| Heap usage | 0 | 0 | 0 | 0 | **0** |
+| String allocations | لا | لا | لا | لا | **لا** |
+| يشتغل على ESP8266 | ⚠️ | ❌ | ✅ | ✅ | **✅** |
+| يدعم HTTPS | ❌ | ❌ | ✅ | ✅ | **✅** |
+| Cache ذكي | ❌ | ✅ | ✅ | ✅ | **✅** |
+| Select + Number | ❌ | ✅ | ✅ | ✅ | **✅** |
+| Device Groups | ❌ | ❌ | ❌ | ✅ | **✅** |
+| Read-Only Entities | ❌ | ❌ | ❌ | ✅ | **✅** |
 
 ---
 
@@ -448,7 +448,7 @@ home/my_device/status     → online / offline
 
 ### Device Groups (v2.2)
 
-عند استخدام `setGroup("Sensors")`، تتغيّر بنية الـ discovery:
+عند استخدام `setGroup("Sensors")`، تتغيّر بنية الـ discovery كالتالي:
 
 ```text
 homeassistant/sensor/my_device_Sensors/temperature/config
@@ -456,16 +456,20 @@ homeassistant/sensor/my_device_Sensors/temperature/config
                       deviceId_groupName
 ```
 
+> ⚠️ **ملاحظة:** اسم الـ group يظهر في **topic الـ discovery** وفي
+> **`device.identifiers`** داخل الـ payload. الـ `unique_id` يبقى
+> `my_device_temperature` (بدون الـ group) لضمان ثباته.
+
 النتيجة في HA:
 
 ```text
 my_device (رئيسي)
-  ├── my_device_Sensors
-  ├── my_device_Controls
-  └── my_device_Diagnostics
+  ├── my_device_Sensors       (via_device → my_device)
+  ├── my_device_Controls      (via_device → my_device)
+  └── my_device_Diagnostics   (via_device → my_device)
 ```
 
-مع `via_device` لربطهم بالرئيسي.
+كل جهاز فرعي مرتبط بالجهاز الرئيسي عبر `via_device`.
 
 ---
 
@@ -714,6 +718,6 @@ Max block: 19000
 
 Made with ❤️ for the Home Assistant community
 
-**v2.2.0** — Groups Edition
+**v2.2.1** — Groups Edition
 
 </div>

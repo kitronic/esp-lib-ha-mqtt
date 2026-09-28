@@ -1,41 +1,70 @@
+// ═══════════════════════════════════════════
+//   مثال بسيط: Sensor واحد لدرجة الحرارة
+// ═══════════════════════════════════════════
+#include <ESP8266WiFi.h>
 #include <HAMQTT.h>
 #include "config.h"
 
-WifiManager wifi;
-MQTTClient mqtt;
+WiFiClient wifiClient;
+HAMQTT ha(&wifiClient);
 
-// Simple temperature sensor example (replace with real sensor code)
-class TempSensor : public Sensor {
-public:
-    const char* name() const override { return "ESP32 Temperature"; }
-    const char* stateTopic() const override { return "/sensors/temp/01/state"; }
-    float readValue() override {
-        // Dummy value – replace with actual sensor reading
-        return 25.3;
-    }
-};
-
-TempSensor temp;
-
-void setup() {
+void setup()
+{
     Serial.begin(115200);
-    wifi.begin(WIFI_SSID, WIFI_PASSWORD);
-    mqtt.setBroker(MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS);
-    mqtt.begin();
+    delay(200);
 
-    // Publish Home Assistant discovery payload once on connect
-    StaticJsonDocument<256> doc;
-    doc["name"] = temp.name();
-    doc["state_topic"] = temp.stateTopic();
-    doc["unit_of_measurement"] = "°C";
-    String payload; serializeJson(doc, payload);
+    Serial.println(F("\n[HAMQTT] Simple Sensor Example"));
 
-    mqtt.publish("homeassistant/sensor/esp32_temp/config", payload.c_str(), true);
+    // ═══ WiFi ═══
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    Serial.print(F("Connecting to WiFi"));
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.print('.');
+    }
+    Serial.printf("\nConnected: %s\n", WiFi.localIP().toString().c_str());
+
+    // ═══ HAMQTT ═══
+    ha.setServer(MQTT_BROKER, MQTT_PORT,
+                 (MQTT_USER[0] ? MQTT_USER : nullptr),
+                 (MQTT_PASS[0] ? MQTT_PASS : nullptr));
+
+    ha.setDevice(DEVICE_ID, DEVICE_NAME,
+                 DEVICE_MANUF, DEVICE_MODEL, FW_VERSION);
+
+    ha.setStateTopicPrefix(STATE_PREFIX);
+    ha.setAvailabilityTopic(AVAIL_TOPIC);
+
+    // ═══ إضافة sensor واحد ═══
+    ha.addSensor("temperature", "Temperature",
+                 "°C", "temperature", "mdi:thermometer", true);
+
+    // ═══ بدء الاتصال ونشر الـ discovery ═══
+    if (ha.begin())
+    {
+        Serial.println(F("[HAMQTT] MQTT connected ✓"));
+        ha.publishDiscovery();
+    }
+    else
+    {
+        Serial.println(F("[HAMQTT] MQTT connection FAILED ✗"));
+    }
 }
 
-void loop() {
-    wifi.loop();      // Wi‑Fi reconnection handling
-    mqtt.loop();      // MQTT keep‑alive & reconnect
-    temp.publish(mqtt);  // publish sensor value
-    delay(10000);       // adjust interval as needed
+void loop()
+{
+    ha.loop();
+
+    static unsigned long last = 0;
+    if (millis() - last > 10000)
+    {
+        last = millis();
+
+        // ═══ استبدل هذا بقراءة الحساس الحقيقي ═══
+        float temperature = 25.3f;
+
+        ha.publishState("temperature", temperature, 1);
+        Serial.printf("[HAMQTT] temp = %.1f °C\n", temperature);
+    }
 }
