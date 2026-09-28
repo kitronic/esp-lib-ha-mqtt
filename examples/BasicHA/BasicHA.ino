@@ -4,9 +4,9 @@
 // ═══════════════════════════════════════════
 
 #if defined(ESP8266)
-#include <ESP8266WiFi.h>
+    #include <ESP8266WiFi.h>
 #elif defined(ESP32)
-#include <WiFi.h>
+    #include <WiFi.h>
 #endif
 
 #include <HAMQTT.h>
@@ -14,21 +14,35 @@
 // ═══════════════════════════════════════════
 //              الإعدادات
 // ═══════════════════════════════════════════
-#define WIFI_SSID "YOUR_WIFI"
-#define WIFI_PASS "YOUR_PASS"
-#define MQTT_SERVER "192.168.68.100"
-#define MQTT_PORT 1883
-#define MQTT_USER "" // اتركه فاضي إذا غير مطلوب
-#define MQTT_PASS ""
+#define WIFI_SSID     "YOUR_WIFI"
+#define WIFI_PASS     "YOUR_PASS"
+#define MQTT_SERVER   "192.168.68.100"
+#define MQTT_PORT     1883
+#define MQTT_USER     ""     // اتركه فاضي إذا غير مطلوب
+#define MQTT_PASS     ""
 
-#define DEVICE_ID "demo_device"
-#define DEVICE_NAME "HAMQTT Demo Device"
-#define DEVICE_MANUF "Kitronic"
-#define DEVICE_MODEL "HAMQTT-Demo"
-#define FW_VERSION "2.2.1"
+#define DEVICE_ID     "demo_device"
+#define DEVICE_NAME   "HAMQTT Demo Device"
+#define DEVICE_MANUF  "Kitronic"
+#define DEVICE_MODEL  "HAMQTT-Demo"
+#define FW_VERSION    "2.2.1"
 
-#define STATE_PREFIX "demo/device"
-#define AVAIL_TOPIC "demo/device/status"
+#define STATE_PREFIX  "demo/device"
+#define AVAIL_TOPIC   "demo/device/status"
+
+// ═══════════════════════════════════════════
+//   Helper: أكبر كتلة ذاكرة حرة (cross-platform)
+// ═══════════════════════════════════════════
+static inline uint32_t getMaxFreeBlockSize()
+{
+#if defined(ESP8266)
+    return ESP.getMaxFreeBlockSize();
+#elif defined(ESP32)
+    return ESP.getMaxAllocHeap();   // ESP32 equivalent
+#else
+    return 0;
+#endif
+}
 
 // ═══════════════════════════════════════════
 WiFiClient wifiClient;
@@ -37,37 +51,30 @@ HAMQTT ha(&wifiClient);
 // ═══════════════════════════════════════════
 //              استقبال الأوامر
 // ═══════════════════════════════════════════
-void onCommand(const char *topic, const char *payload)
-{
+void onCommand(const char* topic, const char* payload) {
     Serial.printf("[CMD] %s => %s\n", topic, payload);
 
-    if (strstr(topic, "restart"))
-    {
+    if (strstr(topic, "restart")) {
         Serial.println("→ Restarting...");
         ESP.restart();
     }
-    else if (strstr(topic, "relay"))
-    {
+    else if (strstr(topic, "relay")) {
         bool on = (strcmp(payload, "ON") == 0);
         Serial.printf("→ Relay: %s\n", on ? "ON" : "OFF");
         ha.publishBinaryState("relay", on);
     }
-    else if (strstr(topic, "mode"))
-    {
+    else if (strstr(topic, "mode")) {
         Serial.printf("→ Mode set to: %s\n", payload);
         ha.publishState("mode", payload);
     }
-    else if (strstr(topic, "threshold"))
-    {
+    else if (strstr(topic, "threshold")) {
         Serial.printf("→ Threshold: %s\n", payload);
         ha.publishState("threshold", payload);
     }
-    else if (strstr(topic, "check_updates"))
-    {
+    else if (strstr(topic, "check_updates")) {
         Serial.println("→ Checking for updates...");
     }
-    else if (strstr(topic, "auto_update"))
-    {
+    else if (strstr(topic, "auto_update")) {
         bool on = (strcmp(payload, "ON") == 0);
         Serial.printf("→ Auto Update: %s\n", on ? "ON" : "OFF");
         ha.publishBinaryState("auto_update", on);
@@ -77,14 +84,18 @@ void onCommand(const char *topic, const char *payload)
 // ═══════════════════════════════════════════
 //              Setup
 // ═══════════════════════════════════════════
-void setup()
-{
+void setup() {
     Serial.begin(115200);
     delay(500);
 
     Serial.println();
     Serial.println(F("═══════════════════════════════════════"));
     Serial.println(F("     HAMQTT v2.2.1 Demo"));
+#if defined(ESP8266)
+    Serial.println(F("     Platform: ESP8266"));
+#elif defined(ESP32)
+    Serial.println(F("     Platform: ESP32"));
+#endif
     Serial.println(F("═══════════════════════════════════════"));
 
     Serial.printf("Free heap BEFORE:       %u bytes\n", ESP.getFreeHeap());
@@ -95,8 +106,7 @@ void setup()
     // ═══ WiFi ═══
     Serial.print(F("Connecting to WiFi"));
     WiFi.begin(WIFI_SSID, WIFI_PASS);
-    while (WiFi.status() != WL_CONNECTED)
-    {
+    while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print('.');
     }
@@ -159,40 +169,32 @@ void setup()
     ha.onCommand(onCommand);
 
     // ═══ بدء الاتصال ═══
-    if (ha.begin())
-    {
+    if (ha.begin()) {
         Serial.println(F("MQTT Connected ✓"));
         delay(500);
         Serial.print(F("Publishing Discovery..."));
-        if (ha.publishDiscovery())
-        {
+        if (ha.publishDiscovery()) {
             Serial.println(F(" ✓"));
-        }
-        else
-        {
+        } else {
             Serial.println(F(" ✗ (some entities failed)"));
         }
-    }
-    else
-    {
+    } else {
         Serial.println(F("MQTT Connection FAILED ✗"));
     }
 
     Serial.printf("Free heap AFTER all:    %u bytes\n", ESP.getFreeHeap());
-    Serial.printf("Max free block:         %u bytes\n", ESP.getMaxFreeBlockSize());
+    Serial.printf("Max free block:         %u bytes\n", getMaxFreeBlockSize());
     Serial.println(F("═══════════════════════════════════════\n"));
 }
 
 // ═══════════════════════════════════════════
 //              Loop
 // ═══════════════════════════════════════════
-void loop()
-{
+void loop() {
     ha.loop();
 
     static unsigned long lastPublish = 0;
-    if (millis() - lastPublish > 5000)
-    {
+    if (millis() - lastPublish > 5000) {
         lastPublish = millis();
 
         ha.publishState("temperature", 22.5f + random(-20, 21) / 10.0f, 1);
@@ -217,18 +219,16 @@ void loop()
         ha.publishState("current_threshold_display", 50.0f, 1);
 
         static unsigned long counter = 0;
-        if (++counter % 12 == 0)
-        {
+        if (++counter % 12 == 0) {
             Serial.printf("[MEM] Heap: %u | MaxBlk: %u | Entities: %u\n",
                           ESP.getFreeHeap(),
-                          ESP.getMaxFreeBlockSize(),
+                          getMaxFreeBlockSize(),
                           ha.entityCount());
         }
     }
 
     static unsigned long lastEvent = 0;
-    if (millis() - lastEvent > 30000)
-    {
+    if (millis() - lastEvent > 30000) {
         lastEvent = millis();
         static bool relayState = false;
         relayState = !relayState;
