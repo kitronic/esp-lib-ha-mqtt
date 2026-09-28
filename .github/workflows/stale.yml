@@ -1,0 +1,32 @@
+name: Close Stale Issues
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # كل يوم منتصف الليل UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 60
+          days-before-close: 14
+          stale-issue-message: |
+            هذا الـ issue خامل منذ 60 يوماً.
+            سيُغلق تلقائياً خلال 14 يوماً إذا لم تُضف تحديثات.
+            إذا كان لا يزال قائماً، أضف تعليقاً لإبقائه مفتوحاً.
+          stale-pr-message: |
+            هذا الـ PR خامل منذ 60 يوماً.
+            سيُغلق تلقائياً خلال 14 يوماً إذا لم تُضف تحديثات.
+          close-issue-message: 'أُغلق تلقائياً لعدم النشاط. أعِد فتحه إذا استمرت المشكلة.'
+          close-pr-message: 'أُغلق تلقائياً لعدم النشاط.'
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          exempt-issue-labels: 'pinned,security,bug'
+          exempt-pr-labels: 'pinned,security'

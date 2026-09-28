@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Releasing $TAG (version $VERSION)"
+
+      - name: Verify version matches library files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          JSON_VER=$(python -c "import json; print(json.load(open('library.json'))['version'])")
+          PROPS_VER=$(grep '^version=' library.properties | cut -d'=' -f2 | tr -d '[:space:]')
+
+          echo "Tag version        → $VERSION"
+          echo "library.json       → $JSON_VER"
+          echo "library.properties → $PROPS_VER"
+
+          if [ "$VERSION" != "$JSON_VER" ]; then
+            echo "❌ Tag version does not match library.json ($VERSION != $JSON_VER)"
+            exit 1
+          fi
+          if [ "$VERSION" != "$PROPS_VER" ]; then
+            echo "❌ Tag version does not match library.properties ($VERSION != $PROPS_VER)"
+            exit 1
+          fi
+          echo "✅ Versions consistent"
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # استخرج قسم الإصدار من CHANGELOG.md
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\["ver"\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > /tmp/release_notes.md
+
+          if [ ! -s /tmp/release_notes.md ]; then
+            echo "⚠️ No changelog entry found for $VERSION"
+            echo "راجع CHANGELOG.md للتفاصيل." > /tmp/release_notes.md
+          fi
+
+          echo "─── Release Notes ───"
+          cat /tmp/release_notes.md
+          echo "─────────────────────"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.version.outputs.version }}"
+          body_path: /tmp/release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          generate_release_notes: false

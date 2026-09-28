@@ -1,0 +1,54 @@
+name: 🐛 Bug Report
+description: أبلغ عن مشكلة في المكتبة
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        شكراً لمساعدتنا! املأ الحقول التالية بأكبر دقة ممكنة.
+
+  - type: input
+    id: version
+    attributes:
+      label: إصدار HAMQTT
+      placeholder: "2.2.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: المنصة
+      options:
+        - ESP8266
+        - ESP32
+        - ESP32-C3
+        - ESP32-S3
+        - أخرى
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: وصف المشكلة
+      placeholder: ماذا حدث؟ وماذا كنت تتوقع؟
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: كود الاستدعاء (minimal)
+      render: cpp
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Serial Output
+      render: text
+    validations:
+      required: false

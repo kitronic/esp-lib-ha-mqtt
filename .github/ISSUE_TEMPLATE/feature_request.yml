@@ -1,0 +1,26 @@
+name: ✨ Feature Request
+description: اقترح ميزة جديدة
+title: "[FEAT] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: المشكلة
+      description: ما الذي تحتاجه ولا تستطيع فعله حالياً؟
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: الحل المقترح
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: بدائل جربتها
+    validations:
+      required: false

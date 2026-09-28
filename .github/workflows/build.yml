@@ -1,0 +1,181 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  # ═══════════════════════════════════════════
+  #  1. ترجمة الأمثلة على ESP8266 و ESP32
+  # ═══════════════════════════════════════════
+  build-examples:
+    name: Build Examples (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - espressif8266
+          - espressif32
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio==6.1.15
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-pio-${{ matrix.platform }}-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-${{ matrix.platform }}-
+
+      - name: Create CI PlatformIO config
+        run: |
+          cat > platformio.ini << 'EOF'
+          [platformio]
+          src_dir = examples/BasicHA
+          default_envs = ${{ matrix.platform }}
+
+          [env]
+          lib_deps =
+              knolleary/PubSubClient@^2.8
+          lib_ldf_mode = deep+
+          build_flags =
+              -D HA_MAX_ENTITIES=16
+              -D HA_MAX_CACHE=24
+
+          [env:espressif8266]
+          platform = espressif8266
+          board = nodemcuv2
+          framework = arduino
+
+          [env:espressif32]
+          platform = espressif32
+          board = esp32dev
+          framework = arduino
+          EOF
+
+      - name: Build BasicHA example
+        run: pio run
+
+      - name: Build simple_sensor example
+        run: |
+          sed -i 's|src_dir = examples/BasicHA|src_dir = examples/simple_sensor|' platformio.ini
+          pio run
+
+  # ═══════════════════════════════════════════
+  #  2. اختبارات Unit (native)
+  # ═══════════════════════════════════════════
+  unit-tests:
+    name: Unit Tests (native)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio==6.1.15
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-pio-native-${{ hashFiles('**/platformio.ini') }}
+
+      - name: Run native tests
+        run: |
+          if [ -f platformio.ini ] && grep -q "env:native" platformio.ini; then
+            pio test -e native
+          else
+            echo "ℹ️ No native test environment found — skipping."
+          fi
+        continue-on-error: true
+
+  # ═══════════════════════════════════════════
+  #  3. تحقق من بنية المكتبة (Library Manager)
+  # ═══════════════════════════════════════════
+  lint-library:
+    name: Lint Library
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio==6.1.15
+
+      - name: Check library structure
+        run: |
+          echo "→ Checking library.json..."
+          test -f library.json || (echo "❌ library.json missing" && exit 1)
+          python -c "import json; json.load(open('library.json'))" || (echo "❌ library.json invalid" && exit 1)
+
+          echo "→ Checking library.properties..."
+          test -f library.properties || (echo "❌ library.properties missing" && exit 1)
+
+          echo "→ Checking required fields..."
+          grep -q "^name=" library.properties || (echo "❌ name missing" && exit 1)
+          grep -q "^version=" library.properties || (echo "❌ version missing" && exit 1)
+          grep -q "^author=" library.properties || (echo "❌ author missing" && exit 1)
+
+          echo "✅ Library structure OK"
+
+      - name: Verify version consistency
+        run: |
+          JSON_VER=$(python -c "import json; print(json.load(open('library.json'))['version'])")
+          PROPS_VER=$(grep '^version=' library.properties | cut -d'=' -f2 | tr -d '[:space:]')
+
+          echo "library.json       → $JSON_VER"
+          echo "library.properties → $PROPS_VER"
+
+          if [ "$JSON_VER" != "$PROPS_VER" ]; then
+            echo "❌ Version mismatch between library.json and library.properties"
+            exit 1
+          fi
+
+          echo "✅ Versions match: $JSON_VER"
+
+      - name: Check config.h firmware version
+        run: |
+          PROPS_VER=$(grep '^version=' library.properties | cut -d'=' -f2 | tr -d '[:space:]')
+          FW_VER=$(grep 'FW_VERSION' config.h | grep -oP '"\K[^"]+' || echo "")
+          echo "config.h FW_VERSION → $FW_VER"
+          echo "library version     → $PROPS_VER"
+          if [ -n "$FW_VER" ] && [ "$FW_VER" != "$PROPS_VER" ]; then
+            echo "⚠️ Warning: FW_VERSION in config.h differs from library version"
+          fi

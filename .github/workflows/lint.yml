@@ -1,0 +1,73 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - '**.h'
+      - '**.cpp'
+      - '**.ino'
+  pull_request:
+    paths:
+      - '**.h'
+      - '**.cpp'
+      - '**.ino'
+  workflow_dispatch:
+
+jobs:
+  clang-format:
+    name: Check C++ Formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          FILES=$(find . -name '*.cpp' -o -name '*.h' -o -name '*.ino' \
+                  | grep -v './examples/' \
+                  | grep -v './.pio/' \
+                  | grep -v './.github/' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "ℹ️ No source files to check"
+            exit 0
+          fi
+
+          echo "→ Files to check:"
+          echo "$FILES"
+          echo ""
+
+          FAILED=0
+          for f in $FILES; do
+            if ! clang-format --dry-run --Werror "$f" 2>/dev/null; then
+              echo "❌ Needs formatting: $f"
+              FAILED=1
+            fi
+          done
+
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "💡 Run 'clang-format -i **/*.cpp **/*.h' locally to fix"
+            exit 1
+          fi
+
+          echo "✅ All files properly formatted"
+
+  markdown-lint:
+    name: Check Markdown
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check README exists
+        run: |
+          test -f README.md || (echo "❌ README.md missing" && exit 1)
+          test -f CHANGELOG.md || (echo "❌ CHANGELOG.md missing" && exit 1)
+          echo "✅ Required markdown files present"
