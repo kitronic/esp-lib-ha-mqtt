@@ -4,17 +4,23 @@
 #include <Arduino.h>
 #include "HAConfig.h"
 
-class HAStateCache {
-public:
+class HAStateCache
+{
+  public:
     HAStateCache();
     void clear();
-    bool shouldPublish(const char* topic, const char* value,
+    bool shouldPublish(const char *topic,
+                       const char *value,
                        unsigned long heartbeatMs = HA_DEFAULT_HEARTBEAT);
-    void commit(const char* topic, const char* value);
-    uint8_t size() const { return _count; }
+    void commit(const char *topic, const char *value);
+    uint8_t size() const
+    {
+        return _count;
+    }
 
-private:
-    struct Entry {
+  private:
+    struct Entry
+    {
         char topic[HA_CACHE_TOPIC_LEN];
         char value[HA_CACHE_VALUE_LEN];
         unsigned long lastTime;
@@ -24,7 +30,7 @@ private:
     Entry _entries[HA_MAX_CACHE];
     uint8_t _count;
 
-    int _find(const char* topic);
+    int _find(const char *topic);
 };
 
 #endif

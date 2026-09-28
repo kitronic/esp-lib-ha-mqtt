@@ -4,8 +4,7 @@
 #include <stdio.h>
 
 // ═══════════════════════════════════════════
-HAMQTT::HAMQTT(Client *networkClient)
-    : _mqtt(*networkClient)
+HAMQTT::HAMQTT(Client *networkClient) : _mqtt(*networkClient)
 {
     _server = nullptr;
     _port = 1883;
@@ -32,8 +31,7 @@ HAMQTT::HAMQTT(Client *networkClient)
 // ═══════════════════════════════════════════
 //              Configuration
 // ═══════════════════════════════════════════
-void HAMQTT::setServer(const char *server, uint16_t port,
-                       const char *user, const char *pass)
+void HAMQTT::setServer(const char *server, uint16_t port, const char *user, const char *pass)
 {
     _server = server;
     _port = port;
@@ -41,8 +39,10 @@ void HAMQTT::setServer(const char *server, uint16_t port,
     _pass = pass;
 }
 
-void HAMQTT::setDevice(const char *id, const char *name,
-                       const char *manufacturer, const char *model,
+void HAMQTT::setDevice(const char *id,
+                       const char *name,
+                       const char *manufacturer,
+                       const char *model,
                        const char *swVersion)
 {
     strncpy(_deviceId, id, HA_ID_LEN - 1);
@@ -85,8 +85,7 @@ void HAMQTT::setDiscoveryPrefix(const char *prefix)
 // ═══════════════════════════════════════════
 void HAMQTT::setGroup(const char *group)
 {
-    if (group == nullptr)
-    {
+    if (group == nullptr) {
         _currentGroup[0] = '\0';
         return;
     }
@@ -106,12 +105,9 @@ void HAMQTT::clearGroup()
 // ← ✅ جديد: تركيب device ID كامل مع الـ group (يُستخدم في topic)
 void HAMQTT::_makeTopicDeviceId(char *buf, size_t len, const HAEntity &e)
 {
-    if (e.group[0] != '\0')
-    {
+    if (e.group[0] != '\0') {
         snprintf(buf, len, "%s_%s", _deviceId, e.group);
-    }
-    else
-    {
+    } else {
         strncpy(buf, _deviceId, len - 1);
         buf[len - 1] = '\0';
     }
@@ -120,31 +116,29 @@ void HAMQTT::_makeTopicDeviceId(char *buf, size_t len, const HAEntity &e)
 // ← ✅ جديد: تثبيت callback مرة واحدة
 void HAMQTT::_installCallback()
 {
-    _mqtt.setCallback([this](char *topic, uint8_t *payload, unsigned int len)
-                      {
+    _mqtt.setCallback([this](char *topic, uint8_t *payload, unsigned int len) {
         if (_commandCallback) {
             char buf[HA_CMD_BUF];
             unsigned int n = (len < sizeof(buf) - 1) ? len : sizeof(buf) - 1;
             memcpy(buf, payload, n);
             buf[n] = '\0';
             _commandCallback(topic, buf);
-        } });
+        }
+    });
 }
 
 // ← ✅ جديد: الاشتراك في كل command topics (تخطى readOnly)
 void HAMQTT::_subscribeAll()
 {
-    for (uint8_t i = 0; i < _entityCount; i++)
-    {
+    for (uint8_t i = 0; i < _entityCount; i++) {
         HAEntity &e = _entities[i];
         if (!e.used)
             continue;
         if (e.readOnly)
             continue;
 
-        if (e.type == HA_BUTTON || e.type == HA_SWITCH ||
-            e.type == HA_SELECT || e.type == HA_NUMBER)
-        {
+        if (e.type == HA_BUTTON || e.type == HA_SWITCH || e.type == HA_SELECT ||
+            e.type == HA_NUMBER) {
             char topic[HA_TOPIC_LEN];
             _buildCommandTopic(topic, sizeof(topic), e.id);
             _mqtt.subscribe(topic);
@@ -160,8 +154,7 @@ bool HAMQTT::begin()
     _mqtt.setServer(_server, _port);
 
     // ← 🔧 نفحص نتيجة setBufferSize
-    if (!_mqtt.setBufferSize(HA_MQTT_BUFFER_SIZE))
-    {
+    if (!_mqtt.setBufferSize(HA_MQTT_BUFFER_SIZE)) {
         // فشل تخصيص الذاكرة — سيستخدم PubSubClient الحجم الافتراضي (128)
         // وهذا سيؤدي لفشل discovery كامل
         return false;
@@ -178,11 +171,9 @@ bool HAMQTT::begin()
 
 void HAMQTT::loop()
 {
-    if (!_mqtt.connected())
-    {
+    if (!_mqtt.connected()) {
         unsigned long now = millis();
-        if (now - _lastReconnect > 5000)
-        {
+        if (now - _lastReconnect > 5000) {
             _lastReconnect = now;
             reconnect();
         }
@@ -191,7 +182,10 @@ void HAMQTT::loop()
     _mqtt.loop();
 }
 
-bool HAMQTT::connected() { return _mqtt.connected(); }
+bool HAMQTT::connected()
+{
+    return _mqtt.connected();
+}
 
 void HAMQTT::reconnect()
 {
@@ -201,12 +195,9 @@ void HAMQTT::reconnect()
     const char *willTopic = _availabilityTopic[0] ? _availabilityTopic : nullptr;
 
     bool ok;
-    if (_user && _user[0])
-    {
+    if (_user && _user[0]) {
         ok = _mqtt.connect(_deviceId, _user, _pass, willTopic, 1, true, "offline");
-    }
-    else
-    {
+    } else {
         ok = _mqtt.connect(_deviceId, nullptr, nullptr, willTopic, 1, true, "offline");
     }
 
@@ -227,17 +218,19 @@ void HAMQTT::reconnect()
 // ═══════════════════════════════════════════
 HAEntity *HAMQTT::_findEntity(const char *id)
 {
-    for (uint8_t i = 0; i < _entityCount; i++)
-    {
+    for (uint8_t i = 0; i < _entityCount; i++) {
         if (_entities[i].used && strcmp(_entities[i].id, id) == 0)
             return &_entities[i];
     }
     return nullptr;
 }
 
-bool HAMQTT::addSensor(const char *id, const char *name,
-                       const char *unit, const char *deviceClass,
-                       const char *icon, bool stateClass)
+bool HAMQTT::addSensor(const char *id,
+                       const char *name,
+                       const char *unit,
+                       const char *deviceClass,
+                       const char *icon,
+                       bool stateClass)
 {
     if (_entityCount >= HA_MAX_ENTITIES)
         return false;
@@ -261,8 +254,10 @@ bool HAMQTT::addSensor(const char *id, const char *name,
     return true;
 }
 
-bool HAMQTT::addBinarySensor(const char *id, const char *name,
-                             const char *deviceClass, const char *icon)
+bool HAMQTT::addBinarySensor(const char *id,
+                             const char *name,
+                             const char *deviceClass,
+                             const char *icon)
 {
     if (_entityCount >= HA_MAX_ENTITIES)
         return false;
@@ -326,9 +321,8 @@ bool HAMQTT::addSwitch(const char *id, const char *name, const char *icon)
     return true;
 }
 
-bool HAMQTT::addSelect(const char *id, const char *name,
-                       const char *optionsJson, const char *icon,
-                       bool readOnly)
+bool HAMQTT::addSelect(
+    const char *id, const char *name, const char *optionsJson, const char *icon, bool readOnly)
 {
     if (_entityCount >= HA_MAX_ENTITIES)
         return false;
@@ -353,9 +347,13 @@ bool HAMQTT::addSelect(const char *id, const char *name,
     return true;
 }
 
-bool HAMQTT::addNumber(const char *id, const char *name,
-                       float minVal, float maxVal, float step,
-                       const char *unit, const char *icon,
+bool HAMQTT::addNumber(const char *id,
+                       const char *name,
+                       float minVal,
+                       float maxVal,
+                       float step,
+                       const char *unit,
+                       const char *icon,
                        bool readOnly)
 {
     if (_entityCount >= HA_MAX_ENTITIES)
@@ -428,9 +426,8 @@ bool HAMQTT::publishDiscovery(const char *entityId)
     char topic[HA_TOPIC_LEN];
     const char *component = HADiscovery::typeToComponent(e->type);
 
-    if (!HADiscovery::buildTopic(topic, sizeof(topic),
-                                 _discoveryPrefix, component,
-                                 topicDeviceId, e->id))
+    if (!HADiscovery::buildTopic(
+            topic, sizeof(topic), _discoveryPrefix, component, topicDeviceId, e->id))
         return false;
 
     char payload[HA_DISCOVERY_BUF];
@@ -448,10 +445,8 @@ bool HAMQTT::publishDiscovery()
         return false;
 
     bool allOk = true;
-    for (uint8_t i = 0; i < _entityCount; i++)
-    {
-        if (_entities[i].used)
-        {
+    for (uint8_t i = 0; i < _entityCount; i++) {
+        if (_entities[i].used) {
             if (!publishDiscovery(_entities[i].id))
                 allOk = false;
             delay(20);
@@ -463,24 +458,27 @@ bool HAMQTT::publishDiscovery()
 // ═══════════════════════════════════════════
 //              Publish State (مع cache)
 // ═══════════════════════════════════════════
-bool HAMQTT::_doPublish(const char *topic, const char *value,
-                        bool retain, unsigned long heartbeatMs)
+bool HAMQTT::_doPublish(const char *topic,
+                        const char *value,
+                        bool retain,
+                        unsigned long heartbeatMs)
 {
     if (!_mqtt.connected())
         return false;
     if (!_cache.shouldPublish(topic, value, heartbeatMs))
         return true;
 
-    if (_mqtt.publish(topic, value, retain))
-    {
+    if (_mqtt.publish(topic, value, retain)) {
         _cache.commit(topic, value);
         return true;
     }
     return false;
 }
 
-bool HAMQTT::publishRaw(const char *topic, const char *value,
-                        bool retain, unsigned long heartbeatMs)
+bool HAMQTT::publishRaw(const char *topic,
+                        const char *value,
+                        bool retain,
+                        unsigned long heartbeatMs)
 {
     return _doPublish(topic, value, retain, heartbeatMs);
 }
@@ -490,8 +488,7 @@ bool HAMQTT::publishRaw(const char *topic, const char *value,
 // ═══════════════════════════════════════════
 
 // 1️⃣ الأساسي - const char*
-bool HAMQTT::publishState(const char *entityId, const char *value,
-                          unsigned long heartbeatMs)
+bool HAMQTT::publishState(const char *entityId, const char *value, unsigned long heartbeatMs)
 {
     HAEntity *e = _findEntity(entityId);
     if (!e)
@@ -505,8 +502,10 @@ bool HAMQTT::publishState(const char *entityId, const char *value,
 }
 
 // 2️⃣ float
-bool HAMQTT::publishState(const char *entityId, float value,
-                          uint8_t decimals, unsigned long heartbeatMs)
+bool HAMQTT::publishState(const char *entityId,
+                          float value,
+                          uint8_t decimals,
+                          unsigned long heartbeatMs)
 {
     char buf[HA_STATE_BUF];
     dtostrf(value, 0, decimals, buf);
@@ -514,8 +513,7 @@ bool HAMQTT::publishState(const char *entityId, float value,
 }
 
 // 3️⃣ int
-bool HAMQTT::publishState(const char *entityId, int value,
-                          unsigned long heartbeatMs)
+bool HAMQTT::publishState(const char *entityId, int value, unsigned long heartbeatMs)
 {
     char buf[HA_STATE_BUF];
     snprintf(buf, sizeof(buf), "%d", value);
@@ -523,8 +521,7 @@ bool HAMQTT::publishState(const char *entityId, int value,
 }
 
 // 4️⃣ ← ✅ جديد: long (يمنع ambiguity)
-bool HAMQTT::publishState(const char *entityId, long value,
-                          unsigned long heartbeatMs)
+bool HAMQTT::publishState(const char *entityId, long value, unsigned long heartbeatMs)
 {
     char buf[HA_STATE_BUF];
     snprintf(buf, sizeof(buf), "%ld", value);
@@ -532,8 +529,7 @@ bool HAMQTT::publishState(const char *entityId, long value,
 }
 
 // 5️⃣ unsigned int
-bool HAMQTT::publishState(const char *entityId, unsigned int value,
-                          unsigned long heartbeatMs)
+bool HAMQTT::publishState(const char *entityId, unsigned int value, unsigned long heartbeatMs)
 {
     char buf[HA_STATE_BUF];
     snprintf(buf, sizeof(buf), "%u", value);
@@ -541,8 +537,7 @@ bool HAMQTT::publishState(const char *entityId, unsigned int value,
 }
 
 // 6️⃣ unsigned long
-bool HAMQTT::publishState(const char *entityId, unsigned long value,
-                          unsigned long heartbeatMs)
+bool HAMQTT::publishState(const char *entityId, unsigned long value, unsigned long heartbeatMs)
 {
     char buf[HA_STATE_BUF];
     snprintf(buf, sizeof(buf), "%lu", value);
@@ -550,8 +545,7 @@ bool HAMQTT::publishState(const char *entityId, unsigned long value,
 }
 
 // 7️⃣ binary
-bool HAMQTT::publishBinaryState(const char *entityId, bool on,
-                                unsigned long heartbeatMs)
+bool HAMQTT::publishBinaryState(const char *entityId, bool on, unsigned long heartbeatMs)
 {
     return publishState(entityId, on ? "true" : "false", heartbeatMs);
 }
@@ -578,8 +572,7 @@ void HAMQTT::onCommand(HACommandCallback callback)
 {
     _commandCallback = callback;
 
-    if (_mqtt.connected())
-    {
+    if (_mqtt.connected()) {
         _subscribeAll();
     }
 }

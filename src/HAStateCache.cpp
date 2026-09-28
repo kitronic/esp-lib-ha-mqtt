@@ -8,8 +8,7 @@ HAStateCache::HAStateCache() : _count(0)
 
 void HAStateCache::clear()
 {
-    for (uint8_t i = 0; i < HA_MAX_CACHE; i++)
-    {
+    for (uint8_t i = 0; i < HA_MAX_CACHE; i++) {
         _entries[i].used = false;
     }
     _count = 0;
@@ -17,16 +16,14 @@ void HAStateCache::clear()
 
 int HAStateCache::_find(const char *topic)
 {
-    for (uint8_t i = 0; i < _count; i++)
-    {
+    for (uint8_t i = 0; i < _count; i++) {
         if (_entries[i].used && strcmp(_entries[i].topic, topic) == 0)
             return i;
     }
     return -1;
 }
 
-bool HAStateCache::shouldPublish(const char *topic, const char *value,
-                                 unsigned long heartbeatMs)
+bool HAStateCache::shouldPublish(const char *topic, const char *value, unsigned long heartbeatMs)
 {
     int idx = _find(topic);
     if (idx < 0)
@@ -42,24 +39,18 @@ void HAStateCache::commit(const char *topic, const char *value)
 {
     int idx = _find(topic);
 
-    if (idx < 0)
-    {
-        if (_count >= HA_MAX_CACHE)
-        {
+    if (idx < 0) {
+        if (_count >= HA_MAX_CACHE) {
             // ← 🔧 استبدال الأقدم زمنياً (LRU فعلي)
             idx = 0;
             unsigned long oldest = _entries[0].lastTime;
-            for (uint8_t i = 1; i < HA_MAX_CACHE; i++)
-            {
-                if (_entries[i].used && _entries[i].lastTime < oldest)
-                {
+            for (uint8_t i = 1; i < HA_MAX_CACHE; i++) {
+                if (_entries[i].used && _entries[i].lastTime < oldest) {
                     oldest = _entries[i].lastTime;
                     idx = i;
                 }
             }
-        }
-        else
-        {
+        } else {
             idx = _count++;
         }
         _entries[idx].used = true;

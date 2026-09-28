@@ -1,0 +1,66 @@
+# ═══════════════════════════════════════════
+#   HAMQTT Code Style
+# ═══════════════════════════════════════════
+BasedOnStyle: LLVM
+
+Language: Cpp
+Standard: c++11
+
+# ═══ المسافات البادئة ═══
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+# ═══ الأقواس ═══
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: false   # if / for / while — قوس على نفس السطر
+  AfterEnum: true
+  AfterFunction: true             # دوال — قوس على سطر جديد
+  AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: false
+  BeforeElse: false
+
+# ═══ المؤشرات والمراجع ═══
+PointerAlignment: Right          # char *name
+ReferenceAlignment: Right        # int &ref
+
+# ═══ الأسطر القصيرة ═══
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+
+# ═══ الطول ═══
+ColumnLimit: 100
+
+# ═══ المسافات ═══
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInAngles: false
+SpacesInContainerLiterals: false
+SpacesBeforeTrailingComments: 1
+
+# ═══ المحاذاة ═══
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: true
+AlignTrailingComments: false
+BinPackArguments: false
+BinPackParameters: false
+
+# ═══ الفرز ═══
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# ═══ أسطر جديدة ═══
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 2

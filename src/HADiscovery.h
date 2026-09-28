@@ -6,7 +6,7 @@
 
 class HADiscovery
 {
-public:
+  public:
     struct Context
     {
         const char *deviceId;
@@ -16,13 +16,13 @@ public:
         const char *swVersion;
         const char *stateTopicPrefix;
         const char *availabilityTopic;
-        const char *group;   // ← ✅ جديد: اسم الجهاز الفرعي
+        const char *group; // ← ✅ جديد: اسم الجهاز الفرعي
     };
 
-    static int build(char *buf, size_t bufLen,
-                     const HAEntity &e, const Context &ctx);
+    static int build(char *buf, size_t bufLen, const HAEntity &e, const Context &ctx);
 
-    static bool buildTopic(char *buf, size_t bufLen,
+    static bool buildTopic(char *buf,
+                           size_t bufLen,
                            const char *discoveryPrefix,
                            const char *component,
                            const char *deviceId,
