@@ -13,7 +13,7 @@
 
 **HAMQTT** مكتبة أردوينو احترافية تبسّط ربط أجهزة **ESP8266 / ESP32** مع **Home Assistant** عبر **MQTT Auto-Discovery**.
 
-**الإصدار 2.2** يضيف **Device Groups** لتنظيم الكيانات في أجهزة فرعية، و **Read-Only Entities** للعرض فقط — مع الحفاظ على **~4 KB فقط RAM ثابتة** و**0 bytes heap**.
+**الإصدار 2.2** يضيف **Device Groups** لتجميع الكيانات تحت جهاز واحد مع إظهار اسم المجموعة في اسم كل كيان، و **Read-Only Entities** للعرض فقط — مع الحفاظ على **~4 KB فقط RAM ثابتة** و**0 bytes heap**.
 
 ### 🎯 لماذا HAMQTT؟
 
@@ -24,7 +24,7 @@
 - 🎨 **6 أنواع كيانات**: sensor, binary_sensor, button, switch, select, number
 - 📊 **state_class تلقائي**: دعم Energy Dashboard
 - 🔌 **يعمل مع BearSSL**: يوفّر ذاكرة كافية لـ HTTPS
-- 🗂️ **Device Groups**: قسّم 80+ entity على أجهزة فرعية
+- 🗂️ **Device Groups**: نظّم الكيانات ضمن جهاز واحد مع بادئة لكل مجموعة
 - 👁️ **Read-Only Entities**: اعرض القيم بدون إمكانية التغيير
 
 ---
@@ -63,7 +63,7 @@
 | ✅ PROGMEM | strings في Flash |
 | ✅ Zero Heap | لا String، لا new |
 | ✅ Multi-Platform | ESP8266 + ESP32 |
-| ✅ **Device Groups** | تنظيم الأجهزة الفرعية |
+| ✅ **Device Groups** | تنظيم الكيانات ضمن جهاز واحد |
 | ✅ **Read-Only Entities** | للعرض فقط |
 
 ---
@@ -156,8 +156,8 @@ void loop() {
 
 | الدالة | الوصف |
 |--------|-------|
-| `setGroup(name)` | بدء مجموعة جديدة — الكيانات التالية تنتمي لها |
-| `clearGroup()` | إعادة للوضع العادي (جهاز واحد) |
+| `setGroup(name)` | تسمية مجموعة الكيانات التالية ضمن الجهاز نفسه |
+| `clearGroup()` | إزالة بادئة المجموعة عن الكيانات التالية |
 
 **مثال:**
 
@@ -178,12 +178,7 @@ ha.addSensor("wifi_ip", ...);
 ha.addSensor("firmware_version", ...);
 ```
 
-النتيجة في HA:
-
-- 🏭 My Device (رئيسي)
-- 📊 My Device - Sensors
-- ⚙️ My Device - Controls
-- 🔧 My Device - Diagnostics
+تظهر الكيانات في صفحة جهاز واحد، وتبدأ أسماؤها ببادئة المجموعة، مثل `Sensors - Battery Voltage` و`Controls - Restart`.
 
 ### 🔄 دورة الحياة
 
@@ -448,7 +443,7 @@ home/my_device/status     → online / offline
 
 ### Device Groups (v2.2)
 
-عند استخدام `setGroup("Sensors")`، تتغيّر بنية الـ discovery كالتالي:
+عند استخدام `setGroup("Sensors")`، تحتفظ رسالة الاكتشاف باسم المجموعة في topic، بينما تشترك كل المجموعات في معرّف الجهاز نفسه:
 
 ```text
 homeassistant/sensor/my_device_Sensors/temperature/config
@@ -456,20 +451,18 @@ homeassistant/sensor/my_device_Sensors/temperature/config
                       deviceId_groupName
 ```
 
-> ⚠️ **ملاحظة:** اسم الـ group يظهر في **topic الـ discovery** وفي
-> **`device.identifiers`** داخل الـ payload. الـ `unique_id` يبقى
-> `my_device_temperature` (بدون الـ group) لضمان ثباته.
+> يظهر اسم المجموعة في **topic الـ discovery** وبادئة اسم الكيان، لكن `device.identifiers` واسم الجهاز يبقيان موحّدين. الـ `unique_id` يبقى `my_device_temperature` لضمان ثبات الكيان.
 
 النتيجة في HA:
 
 ```text
-my_device (رئيسي)
-  ├── my_device_Sensors       (via_device → my_device)
-  ├── my_device_Controls      (via_device → my_device)
-  └── my_device_Diagnostics   (via_device → my_device)
+My Device
+  Sensors - Temperature
+  Controls - Restart
+  Diagnostics - WiFi IP
 ```
 
-كل جهاز فرعي مرتبط بالجهاز الرئيسي عبر `via_device`.
+كل الكيانات تظهر في صفحة الجهاز نفسه، من دون إنشاء أجهزة فرعية.
 
 ---
 

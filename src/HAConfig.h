@@ -21,7 +21,7 @@
 #define HA_NAME_LEN 40 // "Battery Voltage"
 #define HA_UNIT_LEN 10 // "V", "°C", "%"
 #define HA_DC_LEN 18 // "temperature"
-#define HA_ICON_LEN 28 // "mdi:battery-70"
+#define HA_ICON_LEN 32 // accommodates the longest configured MDI icon
 #define HA_TOPIC_LEN 128 // ← 🔧 كان 80 — لازم يستوعب topic discovery كامل
 #define HA_CACHE_TOPIC_LEN 72 // topic for cache
 #define HA_CACHE_VALUE_LEN 96 // value for cache

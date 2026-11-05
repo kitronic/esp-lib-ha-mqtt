@@ -38,36 +38,12 @@ bool HADiscovery::buildTopic(char *buf,
 // ═══════════════════════════════════════════
 static int appendDevice(char *buf, size_t bufLen, int n, const HADiscovery::Context &ctx)
 {
-    // ═══ إذا في group، نستخدم device ID منفصل ═══
-    char deviceId[80];
-    char deviceName[96];
-    bool hasGroup = (ctx.group && ctx.group[0] != '\0');
-
-    if (hasGroup) {
-        // مثال: "pip_inverter3_Sensors"
-        snprintf(deviceId, sizeof(deviceId), "%s_%s", ctx.deviceId, ctx.group);
-
-        // مثال: "PIP Solar Inverter 3 - Sensors"
-        snprintf(deviceName, sizeof(deviceName), "%s - %s", ctx.deviceName, ctx.group);
-    } else {
-        strncpy(deviceId, ctx.deviceId, sizeof(deviceId) - 1);
-        deviceId[sizeof(deviceId) - 1] = '\0';
-
-        strncpy(deviceName, ctx.deviceName, sizeof(deviceName) - 1);
-        deviceName[sizeof(deviceName) - 1] = '\0';
-    }
-
     // ═══ Device block ═══
     n += snprintf(buf + n,
                   bufLen - n,
                   "\"device\":{\"identifiers\":[\"%s\"],\"name\":\"%s\"",
-                  deviceId,
-                  deviceName);
-
-    // ═══ ربط الجهاز الفرعي بالجهاز الرئيسي ═══
-    if (hasGroup) {
-        n += snprintf(buf + n, bufLen - n, ",\"via_device\":\"%s\"", ctx.deviceId);
-    }
+                  ctx.deviceId,
+                  ctx.deviceName);
 
     // ═══ Manufacturer / Model / Version ═══
     if (ctx.manufacturer && ctx.manufacturer[0])
@@ -98,13 +74,20 @@ static int appendAvail(char *buf, size_t bufLen, int n, const HADiscovery::Conte
 int HADiscovery::build(char *buf, size_t bufLen, const HAEntity &e, const Context &ctx)
 {
     int n = 0;
+    char entityName[HA_GROUP_LEN + HA_NAME_LEN + 4];
+    if (e.group[0] != '\0') {
+        snprintf(entityName, sizeof(entityName), "%s - %s", e.group, e.name);
+    } else {
+        strncpy(entityName, e.name, sizeof(entityName) - 1);
+        entityName[sizeof(entityName) - 1] = '\0';
+    }
 
     // ═══ الاسم + unique_id ═══
     n += snprintf(buf + n,
                   bufLen - n,
                   "{\"name\":\"%s\","
                   "\"unique_id\":\"%s_%s\",",
-                  e.name,
+                  entityName,
                   ctx.deviceId,
                   e.id);
 

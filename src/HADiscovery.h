@@ -16,7 +16,7 @@ class HADiscovery
         const char *swVersion;
         const char *stateTopicPrefix;
         const char *availabilityTopic;
-        const char *group; // ← ✅ جديد: اسم الجهاز الفرعي
+        const char *group;
     };
 
     static int build(char *buf, size_t bufLen, const HAEntity &e, const Context &ctx);
